@@ -1,0 +1,527 @@
+# Production-ready configuration for Prowler Helm Chart
+#
+# This example demonstrates a production-grade deployment with:
+# - External managed databases (PostgreSQL and Valkey)
+# - Resource limits for all components
+# - Persistent storage for scan outputs
+# - Ingress configuration with TLS
+# - Network policies enabled
+# - High availability with multiple replicas
+# - Pod Disruption Budgets
+# - Horizontal Pod Autoscaling
+#
+# Usage:
+#   helm install prowler charts/prowler -f examples/values-production.yaml \
+#     --set postgresql.enabled=false \
+#     --set valkey.enabled=false
+
+# Disable built-in databases - using external managed services
+postgresql:
+  enabled: false
+
+valkey:
+  enabled: false
+
+# Shared storage for scan outputs (API and Worker must share this)
+sharedStorage:
+  type: persistentVolumeClaim
+  persistentVolumeClaim:
+    create: true
+    storageClassName: ""  # Use default or specify your storage class (e.g., gp3, premium-rwo)
+    accessMode: ReadWriteMany
+    size: 50Gi
+
+# UI Configuration
+ui:
+  replicaCount: 3
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  image:
+    repository: prowlercloud/prowler-ui
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+
+  podAnnotations: {}
+
+  podLabels: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  service:
+    type: ClusterIP
+    port: 3000
+
+  ingress:
+    enabled: true
+    className: "nginx"  # Or your ingress controller (traefik, alb, etc.)
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+    hosts:
+      - host: prowler.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: prowler-ui-tls
+        hosts:
+          - prowler.example.com
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  volumeMounts: []
+  volumes: []
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - ui
+            topologyKey: kubernetes.io/hostname
+
+# API Configuration
+api:
+  replicaCount: 3
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  image:
+    repository: prowlercloud/prowler-api
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+
+  podAnnotations: {}
+
+  podLabels: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  service:
+    type: ClusterIP
+    port: 8080
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    annotations:
+      cert-manager.io/cluster-issuer: "letsencrypt-prod"
+      nginx.ingress.kubernetes.io/ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+      nginx.ingress.kubernetes.io/proxy-body-size: "100m"
+      # Rate limiting
+      nginx.ingress.kubernetes.io/limit-rps: "100"
+    hosts:
+      - host: prowler-api.example.com
+        paths:
+          - path: /
+            pathType: Prefix
+    tls:
+      - secretName: prowler-api-tls
+        hosts:
+          - prowler-api.example.com
+
+  # Django configuration keys - auto-generated on install
+  djangoConfigKeys:
+    create: true
+
+  # Django configuration
+  djangoConfig:
+    DJANGO_ALLOWED_HOSTS: "prowler-api.example.com,localhost"
+    DJANGO_CORS_ALLOWED_ORIGINS: "https://prowler.example.com"
+    DJANGO_DEBUG: "False"
+    DJANGO_LOG_LEVEL: "INFO"
+    DJANGO_TMP_OUTPUT_DIRECTORY: "/tmp/prowler_api_output"
+
+  # API configuration storage (for Prowler CLI config)
+  configStorage:
+    enabled: true
+    type: persistentVolumeClaim
+    persistentVolumeClaim:
+      create: true
+      storageClassName: ""
+      accessMode: ReadWriteOnce
+      size: 1Gi
+
+  # Secrets - create these manually or use external secret management
+  secrets: []
+    # - prowler-api-external-db
+    # - prowler-api-external-valkey
+
+  startupProbe:
+    httpGet:
+      path: /api/health/
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 60
+
+  livenessProbe:
+    httpGet:
+      path: /api/health/
+      port: http
+    initialDelaySeconds: 30
+    periodSeconds: 10
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+
+  readinessProbe:
+    httpGet:
+      path: /api/health/
+      port: http
+    initialDelaySeconds: 10
+    periodSeconds: 5
+    timeoutSeconds: 3
+    successThreshold: 1
+    failureThreshold: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  volumeMounts: []
+  volumes: []
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - api
+            topologyKey: kubernetes.io/hostname
+
+# Worker Configuration
+worker:
+  replicaCount: 3
+
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 2
+
+  image:
+    repository: prowlercloud/prowler-api
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+      # For cloud scanning, add necessary IAM role annotations:
+      # AWS: eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/prowler-scanner
+      # Azure: azure.workload.identity/client-id: "your-client-id"
+      # GCP: iam.gke.io/gcp-service-account: prowler@project.iam.gserviceaccount.com
+
+  podAnnotations: {}
+
+  podLabels: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  # Worker configuration storage (for Prowler CLI config and cloud credentials)
+  configStorage:
+    enabled: true
+    type: persistentVolumeClaim
+    persistentVolumeClaim:
+      create: true
+      storageClassName: ""
+      accessMode: ReadWriteOnce
+      size: 1Gi
+
+  secrets: []
+    # - prowler-worker-external-db
+    # - prowler-worker-external-valkey
+    # - prowler-cloud-credentials
+
+  # Probes for Celery worker health
+  livenessProbe:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - celery -A config inspect ping -d celery@$HOSTNAME
+    initialDelaySeconds: 30
+    periodSeconds: 30
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 3
+
+  readinessProbe:
+    exec:
+      command:
+        - /bin/sh
+        - -c
+        - celery -A config inspect ping -d celery@$HOSTNAME
+    initialDelaySeconds: 20
+    periodSeconds: 10
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 20
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+
+  volumeMounts: []
+  volumes: []
+
+  nodeSelector: {}
+    # For dedicated worker nodes:
+    # workload-type: prowler-worker
+
+  tolerations: []
+    # For dedicated worker nodes with taints:
+    # - key: "workload-type"
+    #   operator: "Equal"
+    #   value: "prowler-worker"
+    #   effect: "NoSchedule"
+
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchExpressions:
+                - key: app.kubernetes.io/component
+                  operator: In
+                  values:
+                    - worker
+            topologyKey: kubernetes.io/hostname
+
+# Worker Beat (Scheduler) Configuration
+worker_beat:
+  replicaCount: 1  # Only 1 beat scheduler needed
+
+  podDisruptionBudget:
+    enabled: false  # Not recommended for singleton
+
+  image:
+    repository: prowlercloud/prowler-api
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  serviceAccount:
+    create: true
+    automount: true
+    annotations: {}
+
+  podAnnotations: {}
+
+  podLabels: {}
+
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
+
+  securityContext:
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop:
+        - ALL
+    readOnlyRootFilesystem: true
+    runAsNonRoot: true
+    runAsUser: 1000
+
+  secrets: []
+    # - prowler-beat-external-db
+    # - prowler-beat-external-valkey
+
+  livenessProbe: {}
+  readinessProbe: {}
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  autoscaling:
+    enabled: false  # Beat scheduler should not autoscale
+
+  volumeMounts: []
+  volumes: []
+
+  nodeSelector: {}
+
+  tolerations: []
+
+  affinity: {}
+
+# Network Policies (requires CNI with network policy support)
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              name: ingress-nginx
+      ports:
+        - protocol: TCP
+          port: 3000  # UI
+        - protocol: TCP
+          port: 8080  # API
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 53  # DNS
+        - protocol: UDP
+          port: 53  # DNS
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432  # PostgreSQL
+        - protocol: TCP
+          port: 6379  # Valkey
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443  # HTTPS for cloud APIs
+
+# External PostgreSQL Configuration
+# Create this secret before deploying:
+#
+# kubectl create secret generic prowler-api-external-db -n prowler \
+#   --from-literal=POSTGRES_HOST=your-rds-endpoint.region.rds.amazonaws.com \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler_db
+
+# External Valkey/Redis Configuration
+# Create this secret before deploying:
+#
+# kubectl create secret generic prowler-api-external-valkey -n prowler \
+#   --from-literal=VALKEY_HOST=your-elasticache-endpoint.region.cache.amazonaws.com \
+#   --from-literal=VALKEY_PORT=6379 \
+#   --from-literal=VALKEY_PASSWORD=your-valkey-password \
+#   --from-literal=VALKEY_DB=0

@@ -1,0 +1,97 @@
+name: QA Checks
+
+on:
+  workflow_call:
+
+env:
+  TZ: "Europe/Berlin"
+
+jobs:
+  lint:
+    name: "Lint & Validate"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: 'v3.14.0'
+
+      - name: Set up chart-testing
+        uses: helm/chart-testing-action@v2.6.1
+
+      - name: Add chart dependencies
+        run: |
+          cd charts/prowler
+          helm dependency build
+
+      - name: Run Helm lint
+        id: helm_lint
+        run: |
+          helm lint charts/prowler
+
+      - name: Run chart-testing lint
+        id: ct_lint
+        run: |
+          ct lint --config ct.yaml --charts charts/prowler
+
+      - name: Run Helm template
+        id: helm_template
+        run: |
+          helm template prowler charts/prowler > /dev/null
+          helm template prowler charts/prowler --set api.networkPolicy.enabled=true > /dev/null
+          helm template prowler charts/prowler --set api.rbac.create=false > /dev/null
+
+      - name: Validate Kubernetes manifests with kubeval
+        id: kubeval
+        run: |
+          # Install kubeval
+          wget https://github.com/instrumenta/kubeval/releases/latest/download/kubeval-linux-amd64.tar.gz
+          tar xf kubeval-linux-amd64.tar.gz
+          sudo mv kubeval /usr/local/bin
+
+          # Render templates and validate against Kubernetes 1.29
+          echo "Validating default configuration..."
+          helm template prowler charts/prowler | kubeval --kubernetes-version 1.29.0 --ignore-missing-schemas
+
+          echo "Validating with network policies enabled..."
+          helm template prowler charts/prowler --set api.networkPolicy.enabled=true | kubeval --kubernetes-version 1.29.0 --ignore-missing-schemas
+
+          echo "Validating with RBAC disabled..."
+          helm template prowler charts/prowler --set api.rbac.create=false | kubeval --kubernetes-version 1.29.0 --ignore-missing-schemas
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## QA Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Checks Completed**:" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.helm_lint.outcome }}" == "success" ]; then
+            echo "  - Helm Lint: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - Helm Lint: ✗" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.ct_lint.outcome }}" == "success" ]; then
+            echo "  - Chart Testing Lint: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - Chart Testing Lint: ✗" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.helm_template.outcome }}" == "success" ]; then
+            echo "  - Helm Template: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - Helm Template: ✗" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ steps.kubeval.outcome }}" == "success" ]; then
+            echo "  - Kubernetes Validation: ✓" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "  - Kubernetes Validation: ✗" >> $GITHUB_STEP_SUMMARY
+          fi

@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "prowler.fullname" . }}-test-ui-connection
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  containers:
+    - name: curl
+      image: curlimages/curl:latest
+      command: ['sh', '-c']
+      args:
+        - |
+          HTTP_CODE=$(curl -s -o /dev/null -w '%{http_code}' http://{{ include "prowler.fullname" . }}-ui:{{ .Values.ui.service.port }}/)
+          echo "HTTP Status: $HTTP_CODE"
+          # Accept 2xx, 3xx as success (UI is working, redirects are expected)
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            exit 0
+          else
+            exit 1
+          fi
+  restartPolicy: Never

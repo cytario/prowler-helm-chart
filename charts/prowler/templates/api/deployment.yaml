@@ -13,13 +13,27 @@ spec:
       app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
   template:
     metadata:
-      {{- with .Values.api.podAnnotations }}
       annotations:
+        # Pod Security Standards
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        # Checksums to trigger automatic pod restarts on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+        {{- if .Values.api.djangoConfigKeys.create }}
+        {{- end }}
+        {{- if .Values.postgresql.enabled }}
+        checksum/secret-postgres: {{ include (print $.Template.BasePath "/api/secret-postgres.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.valkey.enabled }}
+        checksum/secret-valkey: {{ include (print $.Template.BasePath "/api/secret-valkey.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.api.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "prowler.labels" . | nindent 8 }}
         app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+        # Pod Security Standards compliance label
+        pod-security.kubernetes.io/enforce: restricted
         {{- with .Values.api.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -74,6 +88,10 @@ spec:
                 name: {{ $secret }}
             {{- end }}
             {{- end }}
+          {{- with .Values.api.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.api.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -86,14 +104,52 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.api.volumeMounts }}
           volumeMounts:
+            # Shared storage for scan outputs
+            - name: shared-storage
+              mountPath: {{ .Values.api.djangoConfig.DJANGO_TMP_OUTPUT_DIRECTORY }}
+            {{- if .Values.api.configStorage.enabled }}
+            # API configuration storage
+            - name: api-config
+              mountPath: /home/prowler/.config/prowler-api
+            {{- end }}
+            {{- with .Values.api.volumeMounts }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.api.volumes }}
+            {{- end }}
       volumes:
+        # Shared storage volume for scan outputs (shared between API and Worker)
+        - name: shared-storage
+          {{- if eq .Values.sharedStorage.type "emptyDir" }}
+          emptyDir:
+            {{- if .Values.sharedStorage.emptyDir.medium }}
+            medium: {{ .Values.sharedStorage.emptyDir.medium }}
+            {{- end }}
+            {{- if .Values.sharedStorage.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.sharedStorage.emptyDir.sizeLimit }}
+            {{- end }}
+          {{- else if eq .Values.sharedStorage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
+          {{- end }}
+        {{- if .Values.api.configStorage.enabled }}
+        # API configuration storage volume
+        - name: api-config
+          {{- if eq .Values.api.configStorage.type "emptyDir" }}
+          emptyDir:
+            {{- if .Values.api.configStorage.emptyDir.medium }}
+            medium: {{ .Values.api.configStorage.emptyDir.medium }}
+            {{- end }}
+            {{- if .Values.api.configStorage.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.api.configStorage.emptyDir.sizeLimit }}
+            {{- end }}
+          {{- else if eq .Values.api.configStorage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.api.configStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-api-config{{ else }}{{ .Values.api.configStorage.persistentVolumeClaim.existingClaim }}{{ end }}
+          {{- end }}
+        {{- end }}
+        {{- with .Values.api.volumes }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       {{- with .Values.api.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

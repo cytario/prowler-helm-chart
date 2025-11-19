@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: {{ include "prowler.fullname" . }}-test-api-connection
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": test
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  containers:
+    - name: wget
+      image: busybox:latest
+      command: ['wget']
+      args: ['{{ include "prowler.fullname" . }}-api:{{ .Values.api.service.port }}/api/v1/docs']
+  restartPolicy: Never

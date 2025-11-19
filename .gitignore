@@ -7,3 +7,28 @@
 **/Chart.lock
 
 # End of https://www.toptal.com/developers/gitignore/api/helm
+
+### Node ###
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Dependency directories
+node_modules/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Package-lock (we keep it for semantic-release dependencies)
+# package-lock.json is tracked
+
+### Semantic Release ###
+# Semantic release temporary files
+.DS_Store

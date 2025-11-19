@@ -1,0 +1,79 @@
+branches:
+  - main
+  - name: beta
+    prerelease: true
+  - name: alpha
+    prerelease: true
+
+plugins:
+  - - "@semantic-release/commit-analyzer"
+    - preset: conventionalcommits
+      releaseRules:
+        - type: feat
+          release: minor
+        - type: fix
+          release: patch
+        - type: perf
+          release: patch
+        - type: docs
+          release: patch
+        - type: refactor
+          release: patch
+        - type: chore
+          release: false
+        - type: test
+          release: false
+        - type: ci
+          release: false
+        - type: build
+          release: false
+        - type: revert
+          release: patch
+        - breaking: true
+          release: major
+
+  - - "@semantic-release/release-notes-generator"
+    - preset: conventionalcommits
+      presetConfig:
+        types:
+          - type: feat
+            section: Features
+          - type: fix
+            section: Bug Fixes
+          - type: perf
+            section: Performance Improvements
+          - type: docs
+            section: Documentation
+          - type: refactor
+            section: Code Refactoring
+          - type: revert
+            section: Reverts
+          - type: security
+            section: Security
+
+  - - "@semantic-release/changelog"
+    - changelogFile: CHANGELOG.md
+      changelogTitle: "# Changelog\n\nAll notable changes to this project will be documented in this file."
+
+  - - "@semantic-release/exec"
+    - verifyConditionsCmd: "echo 'Verifying Helm chart...'"
+      prepareCmd: |
+        # Update Chart.yaml version
+        sed -i "s/^version:.*/version: ${nextRelease.version}/" charts/prowler/Chart.yaml
+
+        # Update README badges
+        sed -i "s/Version-[0-9.]*/Version-${nextRelease.version}/" README.md
+        sed -i "s/Version-[0-9.]*/Version-${nextRelease.version}/" charts/prowler/README.md
+
+  - - "@semantic-release/git"
+    - assets:
+        - CHANGELOG.md
+        - charts/prowler/Chart.yaml
+        - README.md
+        - charts/prowler/README.md
+      message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+
+  - - "@semantic-release/github"
+    - successComment: false
+      failComment: false
+      releasedLabels: false

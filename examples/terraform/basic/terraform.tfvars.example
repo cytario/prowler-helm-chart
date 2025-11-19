@@ -1,0 +1,28 @@
+# Kubernetes Configuration
+kubeconfig_path = "~/.kube/config"
+kube_context    = ""  # Leave empty for current context
+
+# Prowler Configuration
+namespace        = "prowler"
+create_namespace = true
+release_name     = "prowler"
+
+# Chart Configuration
+# Option 1: Use local chart
+chart_path = "../../../charts/prowler"
+
+# Option 2: Use chart from repository (uncomment and configure)
+# chart_repository = "https://your-helm-repo.com"
+# chart_version    = "0.1.0"
+
+# Database Configuration
+postgres_password = "change-this-secure-password"
+
+# Application Scaling
+api_replicas    = 2
+ui_replicas     = 2
+worker_replicas = 2
+
+# Storage Configuration
+enable_persistence = true
+storage_class      = ""  # Use default storage class, or specify: "gp2", "standard", etc.

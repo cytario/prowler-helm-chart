@@ -1,8 +1,8 @@
 apiVersion: v2
 name: prowler
-description: Prowler is an Open Cloud Security tool for AWS, Azure, GCP and Kubernetes. It helps for continuous monitoring, security assessments and audits, incident response, compliance, hardening and forensics readiness. 
+description: Prowler is an Open Cloud Security tool for AWS, Azure, GCP and Kubernetes. It helps for continuous monitoring, security assessments and audits, incident response, compliance, hardening and forensics readiness.
 type: application
-version: 0.0.2
+version: 0.1.0
 appVersion: "5.5.1"
 home: https://prowler.com/
 icon: https://prowler.com/wp-content/themes/prowler-2024/img/web-logo-prowler-p.png
@@ -18,15 +18,15 @@ maintainers:
 dependencies:
   # https://artifacthub.io/packages/helm/bitnami/postgresql
   - name: postgresql
-    version: 16.6.3
+    version: 18.1.4
     repository: https://charts.bitnami.com/bitnami
     condition: postgresql.enabled
-  # https://artifacthub.io/packages/helm/bitnami/valkey
+  # https://github.com/valkey-io/valkey-helm
   - name: valkey
-    version: 3.0.1
-    repository: https://charts.bitnami.com/bitnami
+    version: 0.7.7
+    repository: https://valkey.io/valkey-helm/
     condition: valkey.enabled
-annotations: 
+annotations:
   artifacthub.io/alternativeName: prowler-app
   artifacthub.io/category: security
   artifacthub.io/links: |
@@ -36,15 +36,47 @@ annotations:
       url: https://github.com/prowler-cloud/prowler
     - name: support
       url: https://github.com/promptlylabs/prowler-helm-chart/issues
+  artifacthub.io/containsSecurityUpdates: "true"
   artifacthub.io/changes: |
+    - kind: security
+      description: Removed hardcoded secrets - auto-generated keys now use lookup to persist across upgrades
+    - kind: security
+      description: Moved UI AUTH_SECRET from ConfigMap to Secret
+    - kind: security
+      description: Removed default PostgreSQL password - must be set explicitly
+    - kind: security
+      description: Added security contexts to all deployments (runAsNonRoot, drop capabilities, seccomp)
+    - kind: security
+      description: Enhanced RBAC with minimal permissions and documentation
     - kind: fixed
-      description: Worker services startup command
+      description: Fixed worker_beat command path from relative to absolute path
+    - kind: fixed
+      description: Fixed worker services startup command
+    - kind: added
+      description: Added NOTES.txt with post-installation instructions and security warnings
+    - kind: added
+      description: Added improved label helpers (selectorLabels, componentLabels)
+    - kind: added
+      description: Added ConfigMap/Secret checksums to trigger automatic pod restarts on config changes
+    - kind: added
+      description: Added Helm tests for UI and API connectivity
+    - kind: added
+      description: Added startupProbe configuration for API (5 minute startup window)
+    - kind: added
+      description: Added PodDisruptionBudget support for high availability
+    - kind: added
+      description: Added comprehensive external services documentation in README
+    - kind: added
+      description: Network policy templates for pod-to-pod communication control
+    - kind: added
+      description: Pod Security Standards labels and annotations
+    - kind: added
+      description: Comprehensive SECURITY.md documentation
     - kind: changed
       description: Environment variables setup for API and worker services
       links:
         - name: Github PR
           url: https://github.com/promptlylabs/prowler-helm-chart/pull/2
-#   artifacthub.io/containsSecurityUpdates: "true"
   artifacthub.io/screenshots: |
     - title: Sign In
       url: https://promptlylabs.github.io/prowler-helm-chart/docs/images/sign_in.png

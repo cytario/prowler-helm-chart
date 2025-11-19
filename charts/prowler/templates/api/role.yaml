@@ -1,4 +1,14 @@
-# https://docs.prowler.com/projects/prowler-open-source/en/latest/tutorials/prowler-app/#step-44-kubernetes-credentials
+{{- if .Values.api.rbac.create -}}
+# Kubernetes RBAC permissions for Prowler to scan the cluster
+# Reference: https://docs.prowler.com/projects/prowler-open-source/en/latest/tutorials/prowler-app/#step-44-kubernetes-credentials
+#
+# These permissions allow Prowler to perform security scans of the Kubernetes cluster.
+# If you don't plan to scan Kubernetes resources, you can disable this by setting:
+#   api.rbac.create: false
+#
+# The ClusterRole grants read-only access to security-relevant resources:
+# - pods, configmaps, nodes, namespaces: for configuration and deployment analysis
+# - RBAC resources: for permission and access control auditing
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
@@ -6,12 +16,29 @@ metadata:
   labels:
     {{- include "prowler.labels" . | nindent 4 }}
 rules:
+# Core API resources
 - apiGroups: [""]
-  resources: ["pods", "configmaps", "nodes", "namespaces"]
-  verbs: ["get", "list", "watch"]
+  resources: ["pods", "configmaps", "nodes", "namespaces", "services", "serviceaccounts"]
+  verbs: ["get", "list"]
+# RBAC resources for access control auditing
 - apiGroups: ["rbac.authorization.k8s.io"]
   resources: ["clusterrolebindings", "rolebindings", "clusterroles", "roles"]
-  verbs: ["get", "list", "watch"]
+  verbs: ["get", "list"]
+# Apps resources for deployment scanning
+- apiGroups: ["apps"]
+  resources: ["deployments", "daemonsets", "statefulsets", "replicasets"]
+  verbs: ["get", "list"]
+# Networking resources
+- apiGroups: ["networking.k8s.io"]
+  resources: ["networkpolicies", "ingresses"]
+  verbs: ["get", "list"]
+# Policy resources
+- apiGroups: ["policy"]
+  resources: ["podsecuritypolicies", "poddisruptionbudgets"]
+  verbs: ["get", "list"]
+{{- with .Values.api.rbac.rules }}
+{{- toYaml . | nindent 0 }}
+{{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
@@ -27,3 +54,4 @@ subjects:
 - kind: ServiceAccount
   name: {{ include "prowler.api.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
+{{- end -}}

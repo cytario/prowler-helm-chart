@@ -1,0 +1,81 @@
+{{- if .Values.api.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "prowler.fullname" . }}-worker
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker
+  policyTypes:
+  - Egress
+  egress:
+  # Allow egress to API
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+    ports:
+    - protocol: TCP
+      port: {{ .Values.api.service.port }}
+  # Allow egress to PostgreSQL
+  {{- if .Values.postgresql.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: postgresql
+    ports:
+    - protocol: TCP
+      port: 5432
+  {{- else }}
+  # If using external PostgreSQL, allow egress to all (configure as needed)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 5432
+  {{- end }}
+  # Allow egress to Valkey
+  {{- if .Values.valkey.enabled }}
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: valkey
+    ports:
+    - protocol: TCP
+      port: 6379
+  {{- else }}
+  # If using external Valkey, allow egress to all (configure as needed)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 6379
+  {{- end }}
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  # Allow egress to cloud provider APIs for scanning
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 443
+  # Allow egress to Kubernetes API for scanning
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 6443
+  {{- with .Values.api.networkPolicy.egress }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end -}}

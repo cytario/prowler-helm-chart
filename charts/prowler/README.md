@@ -5,11 +5,11 @@ Images should use absolute URLs.
 
 # Prowler Helm Chart
 
-![Version: 0.0.2](https://img.shields.io/badge/Version-0.0.2-informational?style=flat-square)
+![Version: 0.1.0](https://img.shields.io/badge/Version-0.1.0-informational?style=flat-square)
 ![AppVersion: 5.5.1](https://img.shields.io/badge/AppVersion-5.5.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/prowler-app)](https://artifacthub.io/packages/helm/prowler-app/prowler)
 
-Prowler is an Open Cloud Security tool for AWS, Azure, GCP and Kubernetes. It helps for continuos monitoring, security assessments and audits, incident response, compliance, hardening and forensics readiness. Includes CIS, NIST 800, NIST CSF, CISA, FedRAMP, PCI-DSS, GDPR, HIPAA, FFIEC, SOC2, GXP, Well-Architected Security, ENS and more.
+Prowler is an Open Cloud Security tool for AWS, Azure, GCP and Kubernetes. It helps for continuous monitoring, security assessments and audits, incident response, compliance, hardening and forensics readiness. Includes CIS, NIST 800, NIST CSF, CISA, FedRAMP, PCI-DSS, GDPR, HIPAA, FFIEC, SOC2, GXP, Well-Architected Security, ENS and more.
 
 This is a Chart for the [Prowler App](https://docs.prowler.com/projects/prowler-open-source/en/latest/#prowler-app), not the [Prowler Dashboard](https://docs.prowler.com/projects/prowler-open-source/en/latest/#prowler-dashboard).
 
@@ -31,18 +31,144 @@ The app leverages the following supporting infrastructure:
 
 ## Setup
 
-Prowler requires an existing PostgreSQL database and a DB user with the necessary permissions to create tables and run migrations.
+### Quick Start
 
-On startup, the Prowler API will run migrations and create a new user defined on the following environment variable:
+Install the chart with default settings:
 
-```yaml
-POSTGRES_USER: prowler
-POSTGRES_PASSWORD: prowler_password
+```bash
+helm repo add prowler-app https://promptlylabs.github.io/prowler-helm-chart
+helm repo update
+helm install prowler prowler-app/prowler
 ```
 
-This Chart uses Bitnami's Charts to deploy [PostgreSQL](https://artifacthub.io/packages/helm/bitnami/postgresql) and [Valkey](https://artifacthub.io/packages/helm/bitnami/valkey), but keep in mind, this is not production ready. Going this way, the Chart sets up the secrets for Prowler to connect to the PostgreSQL database and Valkey.
+### Prerequisites
 
-To connect to existing PostgreSQL and Valkey instances. Create `Secrets` containing the correct credentials, as specified in the `values.yaml` file.
+Prowler requires:
+- Kubernetes 1.19+
+- Helm 3.0+
+- PostgreSQL database
+- Valkey/Redis instance
+
+### Database Configuration
+
+By default, this chart deploys [PostgreSQL](https://artifacthub.io/packages/helm/bitnami/postgresql) and the official [Valkey Helm Chart](https://github.com/valkey-io/valkey-helm).
+
+**⚠️ Warning**: The bundled databases are **NOT production-ready**. For production deployments, use external managed databases.
+
+#### Using External PostgreSQL
+
+1. Create a secret with your PostgreSQL credentials:
+
+```bash
+kubectl create secret generic prowler-external-postgres \
+  --from-literal=POSTGRES_HOST=your-postgres-host.example.com \
+  --from-literal=POSTGRES_PORT=5432 \
+  --from-literal=POSTGRES_ADMIN_USER=admin \
+  --from-literal=POSTGRES_ADMIN_PASSWORD=admin-password \
+  --from-literal=POSTGRES_USER=prowler \
+  --from-literal=POSTGRES_PASSWORD=prowler-password \
+  --from-literal=POSTGRES_DB=prowler_db
+```
+
+2. Update your `values.yaml`:
+
+```yaml
+postgresql:
+  enabled: false
+
+api:
+  secrets:
+    - prowler-external-postgres
+```
+
+**Required PostgreSQL Permissions:**
+- The `POSTGRES_ADMIN_USER` needs: `CREATE`, `ALTER`, `DROP` on the database (for migrations)
+- The `POSTGRES_USER` will be created by the admin user with necessary permissions
+
+#### Using External Valkey/Redis
+
+1. Create a secret with your Valkey/Redis credentials:
+
+```bash
+kubectl create secret generic prowler-external-valkey \
+  --from-literal=VALKEY_HOST=your-redis-host.example.com \
+  --from-literal=VALKEY_PORT=6379 \
+  --from-literal=VALKEY_PASSWORD=your-password \
+  --from-literal=VALKEY_DB=0
+```
+
+2. Update your `values.yaml`:
+
+```yaml
+valkey:
+  enabled: false
+
+api:
+  secrets:
+    - prowler-external-valkey
+
+worker:
+  secrets:
+    - prowler-external-valkey
+
+worker_beat:
+  secrets:
+    - prowler-external-valkey
+```
+
+**Note:** If your Redis/Valkey instance doesn't require authentication, you can omit `VALKEY_PASSWORD`.
+
+### Security
+
+This chart implements several security features:
+
+- **Auto-generated secrets**: Django keys are automatically generated during installation
+- **Security contexts**: All pods run as non-root with dropped capabilities
+- **Network policies**: Optional pod-to-pod communication control
+- **RBAC**: Minimal read-only permissions for Kubernetes scanning
+- **Pod Security Standards**: Compliance with restricted security profile
+
+For detailed security configuration, see [SECURITY.md](https://github.com/promptlylabs/prowler-helm-chart/blob/main/SECURITY.md).
+
+### Configuration
+
+The chart can be customized using values. See `values.yaml` for all available options.
+
+Common configurations:
+
+```yaml
+# Enable network policies
+api:
+  networkPolicy:
+    enabled: true
+
+# Configure resource limits
+api:
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+# Use external databases
+postgresql:
+  enabled: false
+
+valkey:
+  enabled: false
+```
+
+## Security
+
+See [SECURITY.md](https://github.com/promptlylabs/prowler-helm-chart/blob/main/SECURITY.md) for comprehensive security documentation including:
+- Security features overview
+- Best practices for production deployments
+- Secrets management
+- Network security configuration
+- RBAC configuration
+- Security checklist
 
 ## Contributing
 

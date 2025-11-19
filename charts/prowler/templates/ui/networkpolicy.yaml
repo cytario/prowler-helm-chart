@@ -1,0 +1,44 @@
+{{- if .Values.api.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "prowler.fullname" . }}-ui
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "prowler.fullname" . }}-ui
+  policyTypes:
+  - Ingress
+  - Egress
+  ingress:
+  # Allow ingress from anywhere on the service port (controlled by Ingress/Service)
+  - ports:
+    - protocol: TCP
+      port: {{ .Values.ui.service.port }}
+  {{- with .Values.api.networkPolicy.ingress }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+  egress:
+  # Allow egress to API
+  - to:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+    ports:
+    - protocol: TCP
+      port: {{ .Values.api.service.port }}
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  {{- with .Values.api.networkPolicy.egress }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end -}}

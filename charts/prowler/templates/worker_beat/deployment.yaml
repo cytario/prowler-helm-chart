@@ -13,13 +13,27 @@ spec:
       app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker-beat
   template:
     metadata:
-      {{- with .Values.worker_beat.podAnnotations }}
       annotations:
+        # Pod Security Standards
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        # Checksums to trigger automatic pod restarts on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+        {{- if .Values.api.djangoConfigKeys.create }}
+        {{- end }}
+        {{- if .Values.postgresql.enabled }}
+        checksum/secret-postgres: {{ include (print $.Template.BasePath "/api/secret-postgres.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.valkey.enabled }}
+        checksum/secret-valkey: {{ include (print $.Template.BasePath "/api/secret-valkey.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.worker_beat.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "prowler.labels" . | nindent 8 }}
         app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker-beat
+        # Pod Security Standards compliance label
+        pod-security.kubernetes.io/enforce: restricted
         {{- with .Values.worker_beat.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

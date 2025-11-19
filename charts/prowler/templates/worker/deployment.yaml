@@ -13,13 +13,27 @@ spec:
       app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker
   template:
     metadata:
-      {{- with .Values.worker.podAnnotations }}
       annotations:
+        # Pod Security Standards
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        # Checksums to trigger automatic pod restarts on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+        {{- if .Values.api.djangoConfigKeys.create }}
+        {{- end }}
+        {{- if .Values.postgresql.enabled }}
+        checksum/secret-postgres: {{ include (print $.Template.BasePath "/api/secret-postgres.yaml") . | sha256sum }}
+        {{- end }}
+        {{- if .Values.valkey.enabled }}
+        checksum/secret-valkey: {{ include (print $.Template.BasePath "/api/secret-valkey.yaml") . | sha256sum }}
+        {{- end }}
+        {{- with .Values.worker.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "prowler.labels" . | nindent 8 }}
         app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker
+        # Pod Security Standards compliance label
+        pod-security.kubernetes.io/enforce: restricted
         {{- with .Values.worker.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -82,14 +96,31 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.worker.volumeMounts }}
           volumeMounts:
+            # Shared storage for scan outputs
+            - name: shared-storage
+              mountPath: {{ .Values.api.djangoConfig.DJANGO_TMP_OUTPUT_DIRECTORY }}
+            {{- with .Values.worker.volumeMounts }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.worker.volumes }}
+            {{- end }}
       volumes:
+        # Shared storage volume for scan outputs (shared between API and Worker)
+        - name: shared-storage
+          {{- if eq .Values.sharedStorage.type "emptyDir" }}
+          emptyDir:
+            {{- if .Values.sharedStorage.emptyDir.medium }}
+            medium: {{ .Values.sharedStorage.emptyDir.medium }}
+            {{- end }}
+            {{- if .Values.sharedStorage.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.sharedStorage.emptyDir.sizeLimit }}
+            {{- end }}
+          {{- else if eq .Values.sharedStorage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
+          {{- end }}
+        {{- with .Values.worker.volumes }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       {{- with .Values.worker.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

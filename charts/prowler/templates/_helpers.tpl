@@ -31,13 +31,30 @@ Create chart name and version as used by the chart label.
 {{- end }}
 
 {{/*
+Selector labels
+*/}}
+{{- define "prowler.selectorLabels" -}}
+app.kubernetes.io/name: {{ include "prowler.name" . }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}
+
+{{/*
 Common labels
 */}}
 {{- define "prowler.labels" -}}
 helm.sh/chart: {{ include "prowler.chart" . }}
-app.kubernetes.io/instance: {{ .Release.Name }}
+{{ include "prowler.selectorLabels" . }}
 {{- if .Chart.AppVersion }}
 app.kubernetes.io/version: {{ .Chart.AppVersion | quote }}
 {{- end }}
 app.kubernetes.io/managed-by: {{ .Release.Service }}
+{{- end }}
+
+{{/*
+Component labels - adds component label to selector labels
+Usage: {{ include "prowler.componentLabels" (dict "component" "api" "context" .) }}
+*/}}
+{{- define "prowler.componentLabels" -}}
+{{ include "prowler.labels" .context }}
+app.kubernetes.io/component: {{ .component }}
 {{- end }}

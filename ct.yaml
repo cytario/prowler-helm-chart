@@ -1,0 +1,15 @@
+# Configuration for chart-testing
+# See https://github.com/helm/chart-testing/blob/main/doc/ct_lint.md
+
+remote: origin
+target-branch: main
+chart-dirs:
+  - charts
+chart-repos:
+  - bitnami=https://charts.bitnami.com/bitnami
+  - valkey=https://valkey.io/valkey-helm/
+helm-extra-args: --timeout 600s
+validate-maintainers: false
+check-version-increment: true
+validate-chart-schema: false
+validate-yaml: false

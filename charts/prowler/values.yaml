@@ -16,7 +16,9 @@ postgresql:
   global:
     postgresql:
       auth:
-        postgresPassword: postgres_password
+        # SECURITY WARNING: Change this password for production!
+        # Generate a secure password with: openssl rand -base64 32
+        postgresPassword: ""
         database: prowler_db
 
 valkey:
@@ -24,17 +26,56 @@ valkey:
   # Otherwise, create a secret with
   # - VALKEY_HOST
   # - VALKEY_PORT
-  # - VALKEY_PASSWORD
+  # - VALKEY_PASSWORD (optional if auth not enabled)
   # - VALKEY_DB
+  # Using official Valkey Helm chart: https://github.com/valkey-io/valkey-helm
   enabled: true
-  architecture: "standalone"
-  auth:
-    enabled: false
-    # password: valkey_password
+  # Number of Valkey replicas (1 for standalone)
+  replicaCount: 1
+  # Persistent storage configuration
+  dataStorage:
+    enabled: false  # Set to true for production with persistent storage
+  # Service configuration
+  service:
+    port: 6379
 
-ui:  
+# Shared storage configuration for scan outputs between API and Worker
+# This volume is mounted at /tmp/prowler_api_output in both API and Worker pods
+sharedStorage:
+  # Type of storage: emptyDir or persistentVolumeClaim
+  # emptyDir: Data is lost when pods are deleted (suitable for development)
+  # persistentVolumeClaim: Data persists across pod restarts (recommended for production)
+  type: emptyDir
+  # Configuration for emptyDir type
+  emptyDir:
+    # Medium can be "" (default, uses node's default storage) or "Memory" (tmpfs, faster but uses RAM)
+    medium: ""
+    # Size limit for emptyDir (e.g., "1Gi", "500Mi")
+    sizeLimit: ""
+  # Configuration for persistentVolumeClaim type
+  persistentVolumeClaim:
+    # Create a new PVC or use an existing one
+    create: true
+    # Name of existing PVC (only used if create: false)
+    existingClaim: ""
+    # Storage class name (leave empty to use default)
+    storageClassName: ""
+    # Access mode: ReadWriteOnce, ReadWriteMany, or ReadOnlyMany
+    # For API and Worker to share, use ReadWriteMany if available
+    accessMode: ReadWriteMany
+    # Storage size
+    size: 10Gi
+
+ui:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
+
+  # Pod Disruption Budget - ensures high availability during voluntary disruptions
+  # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+    # maxUnavailable: 1
 
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
@@ -66,16 +107,21 @@ ui:
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
   podLabels: {}
 
-  podSecurityContext: {}
-    # fsGroup: 2000
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
 
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # UI needs write access to /app/.next for Next.js
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
 
   # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
@@ -104,14 +150,16 @@ ui:
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # resources, such as Minikube.
+    #
+    # PRODUCTION RECOMMENDATIONS for UI (Next.js application):
+    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
-    #   memory: 128Mi
+    #   cpu: 1000m      # UI serves static assets and SSR
+    #   memory: 1Gi     # Next.js + Node.js runtime
     # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
+    #   cpu: 250m       # Minimum for stable operation
+    #   memory: 256Mi   # Base Next.js requirements
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe:
     httpGet:
@@ -149,9 +197,16 @@ ui:
 
   affinity: {}
 
-api:  
+api:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
+
+  # Pod Disruption Budget - ensures high availability during voluntary disruptions
+  # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+    # maxUnavailable: 1
 
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
@@ -161,6 +216,22 @@ api:
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
 
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional ingress rules
+    ingress: []
+    # Additional egress rules
+    egress: []
+
+  # RBAC configuration for Kubernetes scanning
+  rbac:
+    # Create ClusterRole and ClusterRoleBinding for Kubernetes resource scanning
+    # Set to false if you don't plan to scan Kubernetes resources
+    create: true
+    # Additional RBAC rules to append
+    rules: []
+
   # Shared with celery-worker and celery-beat
   djangoConfig:
     # API scan settings
@@ -168,6 +239,8 @@ api:
     DJANGO_TMP_OUTPUT_DIRECTORY: "/tmp/prowler_api_output"
     # The maximum number of findings to process in a single batch
     DJANGO_FINDINGS_BATCH_SIZE: "1000"
+    # The maximum number of items to delete in a single batch operation
+    DJANGO_DELETION_BATCH_SIZE: "1000"
     # Django settings
     DJANGO_ALLOWED_HOSTS: "*"
     DJANGO_BIND_ADDRESS: "0.0.0.0"
@@ -185,18 +258,36 @@ api:
     DJANGO_ACCESS_TOKEN_LIFETIME: "30"
     # Token lifetime is in minutes
     DJANGO_REFRESH_TOKEN_LIFETIME: "1440"
+    # Throttle limit for token obtain endpoint (requests per hour)
+    DJANGO_THROTTLE_TOKEN_OBTAIN: "10/hour"
     DJANGO_CACHE_MAX_AGE: "3600"
     DJANGO_STALE_WHILE_REVALIDATE: "60"
     DJANGO_MANAGE_DB_PARTITIONS: "True"
     DJANGO_BROKER_VISIBILITY_TIMEOUT: "86400"
+    # Maximum number of celery deadlock detection attempts
+    DJANGO_CELERY_DEADLOCK_ATTEMPTS: "5"
+    # Optional Sentry configuration for error tracking
+    # DJANGO_SENTRY_DSN: ""
+    # SENTRY_ENVIRONMENT: "production"
+    # SENTRY_RELEASE: ""
+    # Optional OAuth configuration - Google
+    # GOOGLE_OAUTH_CLIENT_ID: ""
+    # GOOGLE_OAUTH_CLIENT_SECRET: ""
+    # GOOGLE_OAUTH_CALLBACK_URL: ""
+    # Optional OAuth configuration - GitHub
+    # GITHUB_OAUTH_CLIENT_ID: ""
+    # GITHUB_OAUTH_CLIENT_SECRET: ""
+    # GITHUB_OAUTH_CALLBACK_URL: ""
   djangoConfigKeys:
-    # Create secret with Django Keys
-    # If false, a secret needs to be created with the following:
+    # Create secret with Django Keys using template-based generation
+    # Keys are automatically generated using secure random values with Helm lookup for persistence
+    # If false, you must manually create the secret
+    # For production, consider generating keys manually:
     # - DJANGO_TOKEN_SIGNING_KEY - obtain from `openssl genrsa -out private.pem 2048`
     # - DJANGO_TOKEN_VERIFYING_KEY - obtain from `openssl rsa -in private.pem -pubout -out public.pem`
     # - DJANGO_SECRETS_ENCRYPTION_KEY - obtain from `openssl rand -base64 32`
     create: true
-  
+
   # Secret names to be used as env vars.
   secrets: []
     # - "prowler-api-keys"
@@ -208,7 +299,7 @@ api:
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []
-  
+
   # This section builds out the service account more information can be found here: https://kubernetes.io/docs/concepts/security/service-accounts/
   serviceAccount:
     # Specifies whether a service account should be created
@@ -228,16 +319,21 @@ api:
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
   podLabels: {}
 
-  podSecurityContext: {}
-    # fsGroup: 2000
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
 
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # API needs write access to DJANGO_TMP_OUTPUT_DIRECTORY
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
 
   # This is for setting up a service more information can be found here: https://kubernetes.io/docs/concepts/services-networking/service/
   service:
@@ -266,21 +362,25 @@ api:
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # resources, such as Minikube.
+    #
+    # PRODUCTION RECOMMENDATIONS for API (Django + Gunicorn):
+    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
-    #   memory: 128Mi
+    #   cpu: 2000m      # API handles requests, database queries, JWT operations
+    #   memory: 2Gi     # Django + gunicorn workers + database connections
     # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
-  # 3m30s to setup DB
-  # startupProbe:
-  #   httpGet:
-  #     path: /api/v1/docs
-  #     port: http
-
-  # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+    #   cpu: 500m       # Minimum for stable operation under load
+    #   memory: 512Mi   # Base Django requirements
+  # This is to setup the startup, liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  # Startup probe is useful for slow starting containers (DB migrations can take 3-4 minutes)
+  startupProbe:
+    httpGet:
+      path: /api/v1/docs
+      port: http
+    failureThreshold: 30
+    periodSeconds: 10
+    # Total startup time: 30 * 10s = 5 minutes
   livenessProbe:
     failureThreshold: 10
     httpGet:
@@ -302,6 +402,24 @@ api:
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
 
+  # Optional persistent storage for API configuration directory
+  # This stores Prowler API configuration files at /home/prowler/.config/prowler-api
+  configStorage:
+    enabled: false
+    # Type: emptyDir or persistentVolumeClaim
+    type: persistentVolumeClaim
+    # Configuration for emptyDir type
+    emptyDir:
+      medium: ""
+      sizeLimit: ""
+    # Configuration for persistentVolumeClaim type
+    persistentVolumeClaim:
+      create: true
+      existingClaim: ""
+      storageClassName: ""
+      accessMode: ReadWriteOnce
+      size: 1Gi
+
   # Additional volumes on the output Deployment definition.
   volumes: []
   # - name: foo
@@ -321,9 +439,16 @@ api:
 
   affinity: {}
 
-worker:  
+worker:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
+
+  # Pod Disruption Budget - ensures high availability during voluntary disruptions
+  # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  podDisruptionBudget:
+    enabled: true
+    minAvailable: 1
+    # maxUnavailable: 1
 
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
@@ -360,28 +485,35 @@ worker:
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
   podLabels: {}
 
-  podSecurityContext: {}
-    # fsGroup: 2000
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
 
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # Worker needs write access for scan outputs
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
 
-  resources:
+  resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # resources, such as Minikube.
+    #
+    # PRODUCTION RECOMMENDATIONS for Worker (Celery + Cloud Scanning):
+    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
-    #   memory: 128Mi
+    #   cpu: 2000m      # Workers perform cloud API scanning tasks
+    #   memory: 2Gi     # Celery + scanning tools + cloud SDK requirements
     # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
+    #   cpu: 500m       # Minimum for scan execution
+    #   memory: 512Mi   # Base Celery requirements
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe: {}
   readinessProbe: {}
@@ -413,10 +545,17 @@ worker:
 
   affinity: {}
 
-
-worker_beat:  
+worker_beat:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 1
+
+  # Pod Disruption Budget - for beat worker, we ensure at least 0 are available
+  # (since only 1 should run at a time, but we want controlled disruption)
+  # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 0
+    # maxUnavailable: 1
 
   # This sets the container image more information can be found here: https://kubernetes.io/docs/concepts/containers/images/
   image:
@@ -425,9 +564,9 @@ worker_beat:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
-  
+
   command:
-    - ../docker-entrypoint.sh
+    - /home/prowler/docker-entrypoint.sh
   args:
     - beat
 
@@ -453,28 +592,35 @@ worker_beat:
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/labels/
   podLabels: {}
 
-  podSecurityContext: {}
-    # fsGroup: 2000
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    fsGroup: 1000
+    seccompProfile:
+      type: RuntimeDefault
 
-  securityContext: {}
-    # capabilities:
-    #   drop:
-    #   - ALL
-    # readOnlyRootFilesystem: true
-    # runAsNonRoot: true
-    # runAsUser: 1000
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # Beat worker needs write access for scheduling state
+    runAsNonRoot: true
+    runAsUser: 1000
+    capabilities:
+      drop:
+        - ALL
 
   resources: {}
     # We usually recommend not to specify default resources and to leave this as a conscious
     # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube. If you do want to specify resources, uncomment the following
-    # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+    # resources, such as Minikube.
+    #
+    # PRODUCTION RECOMMENDATIONS for Worker Beat (Celery Beat Scheduler):
+    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
     # limits:
-    #   memory: 128Mi
+    #   cpu: 500m       # Scheduler is lightweight, just manages task scheduling
+    #   memory: 512Mi   # Minimal memory for beat scheduler
     # requests:
-    #   cpu: 100m
-    #   memory: 128Mi
-
+    #   cpu: 100m       # Very low CPU requirements
+    #   memory: 128Mi   # Base requirements for scheduler
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe: {}
   readinessProbe: {}
