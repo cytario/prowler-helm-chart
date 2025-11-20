@@ -2,42 +2,23 @@
 nameOverride: ""
 fullnameOverride: ""
 
-postgresql:
-  # If enabled, it will create a Secret with the credentials.
-  # Otherwise, create a secret with the following:
-  # - POSTGRES_HOST
-  # - POSTGRES_PORT
-  # - POSTGRES_ADMIN_USER     - Existing user in charge of migrations, tables, permissions, RLS
-  # - POSTGRES_ADMIN_PASSWORD
-  # - POSTGRES_USER           - Will be created by ADMIN_USER
-  # - POSTGRES_PASSWORD
-  # - POSTGRES_DB             - Existing DB
-  enabled: true
-  global:
-    postgresql:
-      auth:
-        # SECURITY WARNING: Change this password for production!
-        # Generate a secure password with: openssl rand -base64 32
-        postgresPassword: ""
-        database: prowler_db
-
-valkey:
-  # If enabled, it will create a Secret with the credentials.
-  # Otherwise, create a secret with
-  # - VALKEY_HOST
-  # - VALKEY_PORT
-  # - VALKEY_PASSWORD (optional if auth not enabled)
-  # - VALKEY_DB
-  # Using official Valkey Helm chart: https://github.com/valkey-io/valkey-helm
-  enabled: true
-  # Number of Valkey replicas (1 for standalone)
-  replicaCount: 1
-  # Persistent storage configuration
-  dataStorage:
-    enabled: false  # Set to true for production with persistent storage
-  # Service configuration
-  service:
-    port: 6379
+# External PostgreSQL and Valkey secrets are required
+# Create secrets with the following keys before installing:
+#
+# PostgreSQL secret (prowler-postgres-secret):
+#   POSTGRES_HOST
+#   POSTGRES_PORT
+#   POSTGRES_ADMIN_USER
+#   POSTGRES_ADMIN_PASSWORD
+#   POSTGRES_USER
+#   POSTGRES_PASSWORD
+#   POSTGRES_DB
+#
+# Valkey secret (prowler-valkey-secret):
+#   VALKEY_HOST
+#   VALKEY_PORT
+#   VALKEY_DB
+#   VALKEY_PASSWORD (optional)
 
 # Shared storage configuration for scan outputs between API and Worker
 # This volume is mounted at /tmp/prowler_api_output in both API and Worker pods
@@ -60,8 +41,8 @@ sharedStorage:
     existingClaim: ""
     # Storage class name (leave empty to use default)
     storageClassName: ""
-    # Access mode: ReadWriteOnce, ReadWriteMany, or ReadOnlyMany
     # For API and Worker to share, use ReadWriteMany if available
+    # Changing to other will fail
     accessMode: ReadWriteMany
     # Storage size
     size: 10Gi
@@ -147,19 +128,13 @@ ui:
     #    hosts:
     #      - chart-example.local
 
-  resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube.
-    #
-    # PRODUCTION RECOMMENDATIONS for UI (Next.js application):
-    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 1000m      # UI serves static assets and SSR
-    #   memory: 1Gi     # Next.js + Node.js runtime
-    # requests:
-    #   cpu: 250m       # Minimum for stable operation
-    #   memory: 256Mi   # Base Next.js requirements
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe:
     httpGet:
@@ -359,19 +334,13 @@ api:
     #    hosts:
     #      - chart-example.local
 
-  resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube.
-    #
-    # PRODUCTION RECOMMENDATIONS for API (Django + Gunicorn):
-    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 2000m      # API handles requests, database queries, JWT operations
-    #   memory: 2Gi     # Django + gunicorn workers + database connections
-    # requests:
-    #   cpu: 500m       # Minimum for stable operation under load
-    #   memory: 512Mi   # Base Django requirements
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
   # This is to setup the startup, liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   # Startup probe is useful for slow starting containers (DB migrations can take 3-4 minutes)
   startupProbe:
@@ -501,19 +470,13 @@ worker:
       drop:
         - ALL
 
-  resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube.
-    #
-    # PRODUCTION RECOMMENDATIONS for Worker (Celery + Cloud Scanning):
-    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 2000m      # Workers perform cloud API scanning tasks
-    #   memory: 2Gi     # Celery + scanning tools + cloud SDK requirements
-    # requests:
-    #   cpu: 500m       # Minimum for scan execution
-    #   memory: 512Mi   # Base Celery requirements
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe: {}
   readinessProbe: {}
@@ -608,19 +571,13 @@ worker_beat:
       drop:
         - ALL
 
-  resources: {}
-    # We usually recommend not to specify default resources and to leave this as a conscious
-    # choice for the user. This also increases chances charts run on environments with little
-    # resources, such as Minikube.
-    #
-    # PRODUCTION RECOMMENDATIONS for Worker Beat (Celery Beat Scheduler):
-    # Uncomment the following lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-    # limits:
-    #   cpu: 500m       # Scheduler is lightweight, just manages task scheduling
-    #   memory: 512Mi   # Minimal memory for beat scheduler
-    # requests:
-    #   cpu: 100m       # Very low CPU requirements
-    #   memory: 128Mi   # Base requirements for scheduler
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe: {}
   readinessProbe: {}

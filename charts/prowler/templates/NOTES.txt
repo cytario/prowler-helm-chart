@@ -37,11 +37,6 @@ App Version:   {{ .Chart.AppVersion }}
       api.secrets: ["your-secret-name"]
 {{- end }}
 
-{{- if and .Values.postgresql.enabled (not .Values.postgresql.global.postgresql.auth.postgresPassword) }}
-⚠️  WARNING: No PostgreSQL password set!
-   Set postgresql.global.postgresql.auth.postgresPassword in values.yaml
-{{- end }}
-
 =======================================================================
   ACCESSING THE APPLICATION
 =======================================================================
@@ -93,16 +88,8 @@ To access the API directly:
 ✓ Prowler API:         {{ .Values.api.replicaCount }} replica(s)
 ✓ Celery Worker:       {{ .Values.worker.replicaCount }} replica(s)
 ✓ Celery Beat:         {{ .Values.worker_beat.replicaCount }} replica(s)
-{{- if .Values.postgresql.enabled }}
-✓ PostgreSQL:          Enabled (internal)
-{{- else }}
 ✓ PostgreSQL:          Using external instance
-{{- end }}
-{{- if .Values.valkey.enabled }}
-✓ Valkey:              Enabled (internal)
-{{- else }}
 ✓ Valkey:              Using external instance
-{{- end }}
 
 =======================================================================
   MONITORING THE DEPLOYMENT

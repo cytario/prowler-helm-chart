@@ -20,40 +20,18 @@ spec:
     ports:
     - protocol: TCP
       port: {{ .Values.api.service.port }}
-  # Allow egress to PostgreSQL
-  {{- if .Values.postgresql.enabled }}
-  - to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
-  {{- else }}
-  # If using external PostgreSQL, allow egress to all (configure as needed)
+  # Allow egress to external PostgreSQL (configure as needed)
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
       port: 5432
-  {{- end }}
-  # Allow egress to Valkey
-  {{- if .Values.valkey.enabled }}
-  - to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: valkey
-    ports:
-    - protocol: TCP
-      port: 6379
-  {{- else }}
-  # If using external Valkey, allow egress to all (configure as needed)
+  # Allow egress to external Valkey (configure as needed)
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
       port: 6379
-  {{- end }}
   # Allow DNS resolution
   - to:
     - namespaceSelector: {}

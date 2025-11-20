@@ -12,40 +12,18 @@ spec:
   policyTypes:
   - Egress
   egress:
-  # Allow egress to Valkey (for scheduling)
-  {{- if .Values.valkey.enabled }}
-  - to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: valkey
-    ports:
-    - protocol: TCP
-      port: 6379
-  {{- else }}
-  # If using external Valkey, allow egress to all (configure as needed)
+  # Allow egress to external Valkey (for scheduling)
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
       port: 6379
-  {{- end }}
-  # Allow egress to PostgreSQL (for task state)
-  {{- if .Values.postgresql.enabled }}
-  - to:
-    - podSelector:
-        matchLabels:
-          app.kubernetes.io/name: postgresql
-    ports:
-    - protocol: TCP
-      port: 5432
-  {{- else }}
-  # If using external PostgreSQL, allow egress to all (configure as needed)
+  # Allow egress to external PostgreSQL (for task state)
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
       port: 5432
-  {{- end }}
   # Allow DNS resolution
   - to:
     - namespaceSelector: {}
