@@ -196,49 +196,102 @@ worker_beat:
           memory: "256Mi"
           cpu: "200m"
 
-# PostgreSQL Configuration (DISABLED - using Cloud SQL)
-postgresql:
-  enabled: false
-
-# Cloud SQL PostgreSQL Configuration
-externalPostgresql:
-  # When using Cloud SQL Proxy sidecar, connect to localhost
-  host: "127.0.0.1"  # Cloud SQL Proxy listens on localhost
-  port: 5432
-  database: "prowler"
-  # OR when using Private Service Connect:
-  # host: "10.123.45.67"  # Private IP of Cloud SQL instance
-  # port: 5432
-
-  # Credentials stored in Secret Manager and synced to K8s secret
-  # Create secret:
-  #
-  # gcloud secrets create prowler-db-username \
-  #   --data-file=- <<< "prowler"
-  #
-  # gcloud secrets create prowler-db-password \
-  #   --data-file=- <<< "SECURE_PASSWORD"
-  #
-  # kubectl create secret generic prowler-cloudsql-credentials \
-  #   --from-literal=username=prowler \
-  #   --from-literal=password='SECURE_PASSWORD'
-  existingSecret: "prowler-cloudsql-credentials"
-  existingSecretUsernameKey: "username"
-  existingSecretPasswordKey: "password"
-
-# Valkey/Redis Configuration (DISABLED - using Memorystore)
-valkey:
-  enabled: false
-
-# Memorystore for Redis Configuration
-externalValkey:
-  # Memorystore instance IP (accessible via VPC peering)
-  host: "10.0.0.3"  # Replace with your Memorystore instance IP
-  port: 6379
-  # Memorystore Standard tier doesn't require authentication by default
-  # If AUTH is enabled:
-  # existingSecret: "prowler-redis-credentials"
-  # existingSecretPasswordKey: "password"
+# ============================================================================
+# Cloud SQL PostgreSQL and Memorystore for Redis Configuration
+# ============================================================================
+#
+# This chart requires external PostgreSQL and Valkey/Redis instances.
+# Create the required secrets before deploying:
+#
+# Option 1: Manual secret creation
+# ---------------------------------
+# For Cloud SQL with Cloud SQL Proxy sidecar (connects to localhost):
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=127.0.0.1 \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# For Cloud SQL with Private Service Connect (direct connection):
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=10.123.45.67 \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# For Memorystore for Redis:
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=10.0.0.3 \
+#   --from-literal=VALKEY_PORT=6379 \
+#   --from-literal=VALKEY_DB=0
+#   # Note: Add VALKEY_PASSWORD only if AUTH is enabled
+#
+# Option 2: Using Secret Manager + External Secrets Operator (Recommended)
+# --------------------------------------------------------------------------
+# 1. Store credentials in Secret Manager:
+#
+# echo -n "prowler-db.us-central1.sql.goog" | \
+#   gcloud secrets create postgres-host --data-file=-
+# echo -n "5432" | \
+#   gcloud secrets create postgres-port --data-file=-
+# echo -n "prowler_admin" | \
+#   gcloud secrets create postgres-admin-user --data-file=-
+# echo -n "your-admin-password" | \
+#   gcloud secrets create postgres-admin-password --data-file=-
+# echo -n "prowler" | \
+#   gcloud secrets create postgres-user --data-file=-
+# echo -n "your-user-password" | \
+#   gcloud secrets create postgres-password --data-file=-
+# echo -n "prowler" | \
+#   gcloud secrets create postgres-db --data-file=-
+#
+# 2. Create ExternalSecret to sync to Kubernetes:
+#
+# apiVersion: external-secrets.io/v1beta1
+# kind: ExternalSecret
+# metadata:
+#   name: prowler-postgres-secret
+#   namespace: prowler
+# spec:
+#   refreshInterval: 1h
+#   secretStoreRef:
+#     name: gcpsm-secret-store
+#     kind: SecretStore
+#   target:
+#     name: prowler-postgres-secret
+#   data:
+#   - secretKey: POSTGRES_HOST
+#     remoteRef:
+#       key: postgres-host
+#   - secretKey: POSTGRES_PORT
+#     remoteRef:
+#       key: postgres-port
+#   - secretKey: POSTGRES_ADMIN_USER
+#     remoteRef:
+#       key: postgres-admin-user
+#   - secretKey: POSTGRES_ADMIN_PASSWORD
+#     remoteRef:
+#       key: postgres-admin-password
+#   - secretKey: POSTGRES_USER
+#     remoteRef:
+#       key: postgres-user
+#   - secretKey: POSTGRES_PASSWORD
+#     remoteRef:
+#       key: postgres-password
+#   - secretKey: POSTGRES_DB
+#     remoteRef:
+#       key: postgres-db
+#
+# (Similar ExternalSecret for prowler-valkey-secret)
+#
+# Note: For Cloud SQL Proxy sidecar, add it to your deployments
+# Note: Memorystore Standard tier doesn't require authentication by default
 
 # Service Account with Workload Identity
 serviceAccount:

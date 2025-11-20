@@ -61,7 +61,7 @@ resource "helm_release" "postgresql" {
 # Create Kubernetes secret with external PostgreSQL credentials
 resource "kubernetes_secret" "postgres_external" {
   metadata {
-    name      = "prowler-external-postgres"
+    name      = "prowler-postgres-secret"
     namespace = var.namespace
   }
 

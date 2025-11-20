@@ -366,8 +366,8 @@ kubectl get svc -n prowler prowler-postgres-postgresql
 Check if secret is created:
 
 ```bash
-kubectl get secret -n prowler prowler-external-postgres
-kubectl describe secret -n prowler prowler-external-postgres
+kubectl get secret -n prowler prowler-postgres-secret
+kubectl describe secret -n prowler prowler-postgres-secret
 ```
 
 Verify environment variables in API pod:

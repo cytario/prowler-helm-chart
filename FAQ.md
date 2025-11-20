@@ -133,10 +133,10 @@ Follow the prompts to create username, email, and password.
 
 ### Can I use an existing PostgreSQL database?
 
-Yes! Set `postgresql.enabled=false` and create a secret with your database credentials:
+Yes! This chart requires external PostgreSQL and Valkey/Redis instances. Create secrets with your credentials:
 
 ```bash
-kubectl create secret generic prowler-external-postgresql -n prowler \
+kubectl create secret generic prowler-postgres-secret -n prowler \
   --from-literal=POSTGRES_HOST=your-db-host \
   --from-literal=POSTGRES_PORT=5432 \
   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
@@ -144,14 +144,17 @@ kubectl create secret generic prowler-external-postgresql -n prowler \
   --from-literal=POSTGRES_USER=prowler \
   --from-literal=POSTGRES_PASSWORD=your-user-password \
   --from-literal=POSTGRES_DB=prowler_db
+
+kubectl create secret generic prowler-valkey-secret -n prowler \
+  --from-literal=VALKEY_HOST=your-redis-host \
+  --from-literal=VALKEY_PORT=6379 \
+  --from-literal=VALKEY_PASSWORD=your-password \
+  --from-literal=VALKEY_DB=0
 ```
 
 Then install with:
 ```bash
-helm install prowler charts/prowler \
-  --set postgresql.enabled=false \
-  --set api.secrets[0]=prowler-external-postgresql \
-  -n prowler
+helm install prowler charts/prowler -n prowler
 ```
 
 See [examples/values-external-db.yaml](examples/values-external-db.yaml) for complete configuration.

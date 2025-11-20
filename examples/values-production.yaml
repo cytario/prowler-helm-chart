@@ -11,16 +11,10 @@
 # - Horizontal Pod Autoscaling
 #
 # Usage:
-#   helm install prowler charts/prowler -f examples/values-production.yaml \
-#     --set postgresql.enabled=false \
-#     --set valkey.enabled=false
+#   helm install prowler charts/prowler -f examples/values-production.yaml
 
-# Disable built-in databases - using external managed services
-postgresql:
-  enabled: false
-
-valkey:
-  enabled: false
+# Note: This chart requires external PostgreSQL and Valkey instances.
+# Create secrets before installing (see instructions at the end of this file).
 
 # Shared storage for scan outputs (API and Worker must share this)
 sharedStorage:
@@ -210,10 +204,10 @@ api:
       accessMode: ReadWriteOnce
       size: 1Gi
 
-  # Secrets - create these manually or use external secret management
+  # Additional secrets (optional)
+  # PostgreSQL and Valkey credentials are automatically loaded via secretKeyRef
+  # Add other secrets here if needed (e.g., OAuth credentials, Sentry DSN)
   secrets: []
-    # - prowler-api-external-db
-    # - prowler-api-external-valkey
 
   startupProbe:
     httpGet:
@@ -332,9 +326,10 @@ worker:
       accessMode: ReadWriteOnce
       size: 1Gi
 
+  # Additional secrets (optional)
+  # PostgreSQL and Valkey credentials are automatically loaded via secretKeyRef
+  # Add cloud provider credentials if not using workload identity
   secrets: []
-    # - prowler-worker-external-db
-    # - prowler-worker-external-valkey
     # - prowler-cloud-credentials
 
   # Probes for Celery worker health
@@ -441,9 +436,9 @@ worker_beat:
     runAsNonRoot: true
     runAsUser: 1000
 
+  # Additional secrets (optional)
+  # PostgreSQL and Valkey credentials are automatically loaded via secretKeyRef
   secrets: []
-    # - prowler-beat-external-db
-    # - prowler-beat-external-valkey
 
   livenessProbe: {}
   readinessProbe: {}
@@ -505,23 +500,31 @@ networkPolicy:
         - protocol: TCP
           port: 443  # HTTPS for cloud APIs
 
-# External PostgreSQL Configuration
-# Create this secret before deploying:
+# ============================================================================
+# REQUIRED: External PostgreSQL and Valkey Secrets
+# ============================================================================
 #
-# kubectl create secret generic prowler-api-external-db -n prowler \
-#   --from-literal=POSTGRES_HOST=your-rds-endpoint.region.rds.amazonaws.com \
-#   --from-literal=POSTGRES_PORT=5432 \
-#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
-#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
-#   --from-literal=POSTGRES_USER=prowler \
-#   --from-literal=POSTGRES_PASSWORD=your-user-password \
-#   --from-literal=POSTGRES_DB=prowler_db
+# This chart requires external PostgreSQL and Valkey instances.
+# Create these secrets before deploying:
 
-# External Valkey/Redis Configuration
-# Create this secret before deploying:
-#
-# kubectl create secret generic prowler-api-external-valkey -n prowler \
-#   --from-literal=VALKEY_HOST=your-elasticache-endpoint.region.cache.amazonaws.com \
-#   --from-literal=VALKEY_PORT=6379 \
-#   --from-literal=VALKEY_PASSWORD=your-valkey-password \
-#   --from-literal=VALKEY_DB=0
+# External PostgreSQL Secret
+# ---------------------------
+kubectl create secret generic prowler-postgres-secret -n prowler \
+  --from-literal=POSTGRES_HOST=your-rds-endpoint.region.rds.amazonaws.com \
+  --from-literal=POSTGRES_PORT=5432 \
+  --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+  --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+  --from-literal=POSTGRES_USER=prowler \
+  --from-literal=POSTGRES_PASSWORD=your-user-password \
+  --from-literal=POSTGRES_DB=prowler_db
+
+# External Valkey/Redis Secret
+# -----------------------------
+kubectl create secret generic prowler-valkey-secret -n prowler \
+  --from-literal=VALKEY_HOST=your-elasticache-endpoint.region.cache.amazonaws.com \
+  --from-literal=VALKEY_PORT=6379 \
+  --from-literal=VALKEY_PASSWORD=your-valkey-password \
+  --from-literal=VALKEY_DB=0
+
+# Note: If your Valkey/Redis instance doesn't use authentication,
+# you can omit VALKEY_PASSWORD or set it to an empty string

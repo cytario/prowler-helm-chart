@@ -137,55 +137,102 @@ worker_beat:
       cpu: 100m
       memory: 128Mi
 
-# PostgreSQL Configuration (DISABLED - using Azure Database for PostgreSQL)
-postgresql:
-  enabled: false
-
-# Azure Database for PostgreSQL Configuration
-externalPostgresql:
-  # Azure PostgreSQL Flexible Server endpoint
-  host: "prowler-db.postgres.database.azure.com"
-  port: 5432
-  database: "prowler"
-  # Credentials stored in Azure Key Vault and synced to K8s secret
-  # Using Secrets Store CSI Driver or manually:
-  #
-  # az keyvault secret set \
-  #   --vault-name prowler-keyvault \
-  #   --name db-username \
-  #   --value prowler
-  #
-  # az keyvault secret set \
-  #   --vault-name prowler-keyvault \
-  #   --name db-password \
-  #   --value 'SECURE_PASSWORD'
-  #
-  # kubectl create secret generic prowler-postgres-credentials \
-  #   --from-literal=username=prowler \
-  #   --from-literal=password='SECURE_PASSWORD'
-  existingSecret: "prowler-postgres-credentials"
-  existingSecretUsernameKey: "username"
-  existingSecretPasswordKey: "password"
-  # For Azure AD authentication (recommended):
-  # sslmode: "require"
-  # Additional connection parameters
-  extraArgs: "sslmode=require"
-
-# Valkey/Redis Configuration (DISABLED - using Azure Cache for Redis)
-valkey:
-  enabled: false
-
-# Azure Cache for Redis Configuration
-externalValkey:
-  # Azure Cache for Redis endpoint
-  host: "prowler-redis.redis.cache.windows.net"
-  port: 6380  # SSL port
-  # Azure Cache for Redis requires authentication
-  existingSecret: "prowler-redis-credentials"
-  existingSecretPasswordKey: "password"
-  # SSL is required for Azure Cache for Redis
-  tls:
-    enabled: true
+# ============================================================================
+# Azure Database for PostgreSQL and Azure Cache for Redis Configuration
+# ============================================================================
+#
+# This chart requires external PostgreSQL and Valkey/Redis instances.
+# Create the required secrets before deploying:
+#
+# Option 1: Manual secret creation
+# ---------------------------------
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=prowler-db.postgres.database.azure.com \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=prowler-redis.redis.cache.windows.net \
+#   --from-literal=VALKEY_PORT=6380 \
+#   --from-literal=VALKEY_PASSWORD=your-redis-access-key \
+#   --from-literal=VALKEY_DB=0
+#
+# Option 2: Using Azure Key Vault + Secrets Store CSI Driver (Recommended)
+# -------------------------------------------------------------------------
+# 1. Store credentials in Azure Key Vault:
+#
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-host --value "prowler-db.postgres.database.azure.com"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-port --value "5432"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-admin-user --value "prowler_admin"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-admin-password --value "your-admin-password"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-user --value "prowler"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-password --value "your-user-password"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-db --value "prowler"
+#
+# 2. Create SecretProviderClass to sync to Kubernetes secret:
+#
+# apiVersion: secrets-store.csi.x-k8s.io/v1
+# kind: SecretProviderClass
+# metadata:
+#   name: prowler-postgres-secret-provider
+#   namespace: prowler
+# spec:
+#   provider: azure
+#   secretObjects:
+#   - secretName: prowler-postgres-secret
+#     type: Opaque
+#     data:
+#     - objectName: postgres-host
+#       key: POSTGRES_HOST
+#     - objectName: postgres-port
+#       key: POSTGRES_PORT
+#     - objectName: postgres-admin-user
+#       key: POSTGRES_ADMIN_USER
+#     - objectName: postgres-admin-password
+#       key: POSTGRES_ADMIN_PASSWORD
+#     - objectName: postgres-user
+#       key: POSTGRES_USER
+#     - objectName: postgres-password
+#       key: POSTGRES_PASSWORD
+#     - objectName: postgres-db
+#       key: POSTGRES_DB
+#   parameters:
+#     keyvaultName: "prowler-keyvault"
+#     tenantId: "your-tenant-id"
+#     usePodIdentity: "false"
+#     useVMManagedIdentity: "true"
+#     objects: |
+#       array:
+#         - objectName: postgres-host
+#           objectType: secret
+#         - objectName: postgres-port
+#           objectType: secret
+#         - objectName: postgres-admin-user
+#           objectType: secret
+#         - objectName: postgres-admin-password
+#           objectType: secret
+#         - objectName: postgres-user
+#           objectType: secret
+#         - objectName: postgres-password
+#           objectType: secret
+#         - objectName: postgres-db
+#           objectType: secret
+#
+# (Similar SecretProviderClass for prowler-valkey-secret)
+#
+# Note: Azure Database for PostgreSQL requires SSL (sslmode=require)
+# Note: Azure Cache for Redis uses port 6380 (SSL) instead of 6379
 
 # Service Account with Azure Workload Identity
 serviceAccount:

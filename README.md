@@ -159,7 +159,7 @@ For production with external managed databases:
 kubectl create namespace prowler
 
 # 2. Create database secrets (see examples/values-external-db.yaml)
-kubectl create secret generic prowler-external-postgresql -n prowler \
+kubectl create secret generic prowler-postgres-secret -n prowler \
   --from-literal=POSTGRES_HOST=your-db-endpoint \
   --from-literal=POSTGRES_PORT=5432 \
   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
@@ -168,7 +168,7 @@ kubectl create secret generic prowler-external-postgresql -n prowler \
   --from-literal=POSTGRES_PASSWORD=your-password \
   --from-literal=POSTGRES_DB=prowler_db
 
-kubectl create secret generic prowler-external-valkey -n prowler \
+kubectl create secret generic prowler-valkey-secret -n prowler \
   --from-literal=VALKEY_HOST=your-redis-endpoint \
   --from-literal=VALKEY_PORT=6379 \
   --from-literal=VALKEY_PASSWORD=your-password \

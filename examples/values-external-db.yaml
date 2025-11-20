@@ -17,34 +17,18 @@
 # Usage:
 #   helm install prowler charts/prowler -f examples/values-external-db.yaml
 
-# Disable built-in databases
-postgresql:
-  enabled: false
-
-valkey:
-  enabled: false
-
-# Create external database secrets before deploying
-api:
-  secrets:
-    - prowler-external-postgresql
-    - prowler-external-valkey
-
-worker:
-  secrets:
-    - prowler-external-postgresql
-    - prowler-external-valkey
-
-worker_beat:
-  secrets:
-    - prowler-external-postgresql
-    - prowler-external-valkey
-
-# ---
-# How to create the external PostgreSQL secret:
-# ---
+# Note: This chart requires external PostgreSQL and Valkey instances.
+# The credentials are automatically loaded from the required secrets:
+#   - prowler-postgres-secret
+#   - prowler-valkey-secret
 #
-# kubectl create secret generic prowler-external-postgresql -n prowler \
+# See detailed instructions below for creating these secrets.
+
+# ============================================================================
+# REQUIRED: Create External PostgreSQL Secret
+# ============================================================================
+#
+# kubectl create secret generic prowler-postgres-secret -n prowler \
 #   --from-literal=POSTGRES_HOST=your-db-instance.region.rds.amazonaws.com \
 #   --from-literal=POSTGRES_PORT=5432 \
 #   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
@@ -86,11 +70,11 @@ worker_beat:
 # - High Availability: Regional
 # - Automated backups: Enabled
 
-# ---
-# How to create the external Valkey/Redis secret:
-# ---
+# ============================================================================
+# REQUIRED: Create External Valkey/Redis Secret
+# ============================================================================
 #
-# kubectl create secret generic prowler-external-valkey -n prowler \
+# kubectl create secret generic prowler-valkey-secret -n prowler \
 #   --from-literal=VALKEY_HOST=your-cache.region.cache.amazonaws.com \
 #   --from-literal=VALKEY_PORT=6379 \
 #   --from-literal=VALKEY_PASSWORD=your-secure-redis-password \

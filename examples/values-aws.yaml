@@ -137,42 +137,74 @@ worker_beat:
       cpu: 100m
       memory: 128Mi
 
-# PostgreSQL Configuration (DISABLED - using Amazon RDS)
-postgresql:
-  enabled: false
-
-# Amazon RDS PostgreSQL Configuration
-externalPostgresql:
-  # RDS endpoint (without port)
-  host: "prowler-db.abc123.us-east-1.rds.amazonaws.com"
-  port: 5432
-  database: "prowler"
-  # Credentials stored in AWS Secrets Manager and synced to K8s secret
-  # Create secret using External Secrets Operator or manually:
-  #
-  # aws secretsmanager create-secret \
-  #   --name prowler/database \
-  #   --secret-string '{"username":"prowler","password":"SECURE_PASSWORD"}'
-  #
-  # kubectl create secret generic prowler-rds-credentials \
-  #   --from-literal=username=prowler \
-  #   --from-literal=password='SECURE_PASSWORD'
-  existingSecret: "prowler-rds-credentials"
-  existingSecretUsernameKey: "username"
-  existingSecretPasswordKey: "password"
-
-# Valkey/Redis Configuration (DISABLED - using Amazon ElastiCache)
-valkey:
-  enabled: false
-
-# Amazon ElastiCache Redis Configuration
-externalValkey:
-  # ElastiCache endpoint
-  host: "prowler-redis.abc123.0001.use1.cache.amazonaws.com"
-  port: 6379
-  # If ElastiCache AUTH is enabled:
-  # existingSecret: "prowler-redis-credentials"
-  # existingSecretPasswordKey: "password"
+# ============================================================================
+# Amazon RDS PostgreSQL and ElastiCache Redis Configuration
+# ============================================================================
+#
+# This chart requires external PostgreSQL and Valkey/Redis instances.
+# Create the required secrets before deploying:
+#
+# Option 1: Manual secret creation
+# ---------------------------------
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=prowler-db.abc123.us-east-1.rds.amazonaws.com \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=prowler-redis.abc123.0001.use1.cache.amazonaws.com \
+#   --from-literal=VALKEY_PORT=6379 \
+#   --from-literal=VALKEY_PASSWORD=your-elasticache-auth-token \
+#   --from-literal=VALKEY_DB=0
+#
+# Option 2: Using AWS Secrets Manager + External Secrets Operator (Recommended)
+# ------------------------------------------------------------------------------
+# 1. Store credentials in AWS Secrets Manager:
+#
+# aws secretsmanager create-secret \
+#   --name prowler/postgresql \
+#   --secret-string '{
+#     "POSTGRES_HOST":"prowler-db.abc123.us-east-1.rds.amazonaws.com",
+#     "POSTGRES_PORT":"5432",
+#     "POSTGRES_ADMIN_USER":"prowler_admin",
+#     "POSTGRES_ADMIN_PASSWORD":"your-admin-password",
+#     "POSTGRES_USER":"prowler",
+#     "POSTGRES_PASSWORD":"your-user-password",
+#     "POSTGRES_DB":"prowler"
+#   }'
+#
+# aws secretsmanager create-secret \
+#   --name prowler/valkey \
+#   --secret-string '{
+#     "VALKEY_HOST":"prowler-redis.abc123.0001.use1.cache.amazonaws.com",
+#     "VALKEY_PORT":"6379",
+#     "VALKEY_PASSWORD":"your-elasticache-auth-token",
+#     "VALKEY_DB":"0"
+#   }'
+#
+# 2. Create ExternalSecret resources to sync to Kubernetes:
+#
+# apiVersion: external-secrets.io/v1beta1
+# kind: ExternalSecret
+# metadata:
+#   name: prowler-postgres-secret
+#   namespace: prowler
+# spec:
+#   refreshInterval: 1h
+#   secretStoreRef:
+#     name: aws-secrets-manager
+#     kind: SecretStore
+#   target:
+#     name: prowler-postgres-secret
+#   dataFrom:
+#   - extract:
+#       key: prowler/postgresql
+#
+# (Similar for prowler-valkey-secret)
 
 # Service Account with IRSA (IAM Roles for Service Accounts)
 serviceAccount:

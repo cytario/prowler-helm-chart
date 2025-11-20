@@ -51,16 +51,16 @@ Prowler requires:
 
 ### Database Configuration
 
-By default, this chart deploys [PostgreSQL](https://artifacthub.io/packages/helm/bitnami/postgresql) and the official [Valkey Helm Chart](https://github.com/valkey-io/valkey-helm).
+**⚠️ Important**: This chart requires external PostgreSQL and Valkey/Redis instances. You must provide these databases before installing the chart. Managed databases (AWS RDS, Azure Database, GCP Cloud SQL) are recommended for production deployments.
 
-**⚠️ Warning**: The bundled databases are **NOT production-ready**. For production deployments, use external managed databases.
+#### External Database Configuration
 
-#### Using External PostgreSQL
+This chart uses external databases by default. Create the required secrets with your database credentials:
 
-1. Create a secret with your PostgreSQL credentials:
+**PostgreSQL Secret:**
 
 ```bash
-kubectl create secret generic prowler-external-postgres \
+kubectl create secret generic prowler-postgres-secret -n prowler \
   --from-literal=POSTGRES_HOST=your-postgres-host.example.com \
   --from-literal=POSTGRES_PORT=5432 \
   --from-literal=POSTGRES_ADMIN_USER=admin \
@@ -70,53 +70,25 @@ kubectl create secret generic prowler-external-postgres \
   --from-literal=POSTGRES_DB=prowler_db
 ```
 
-2. Update your `values.yaml`:
-
-```yaml
-postgresql:
-  enabled: false
-
-api:
-  secrets:
-    - prowler-external-postgres
-```
-
-**Required PostgreSQL Permissions:**
-- The `POSTGRES_ADMIN_USER` needs: `CREATE`, `ALTER`, `DROP` on the database (for migrations)
-- The `POSTGRES_USER` will be created by the admin user with necessary permissions
-
-#### Using External Valkey/Redis
-
-1. Create a secret with your Valkey/Redis credentials:
+**Valkey/Redis Secret:**
 
 ```bash
-kubectl create secret generic prowler-external-valkey \
+kubectl create secret generic prowler-valkey-secret -n prowler \
   --from-literal=VALKEY_HOST=your-redis-host.example.com \
   --from-literal=VALKEY_PORT=6379 \
   --from-literal=VALKEY_PASSWORD=your-password \
   --from-literal=VALKEY_DB=0
 ```
 
-2. Update your `values.yaml`:
-
-```yaml
-valkey:
-  enabled: false
-
-api:
-  secrets:
-    - prowler-external-valkey
-
-worker:
-  secrets:
-    - prowler-external-valkey
-
-worker_beat:
-  secrets:
-    - prowler-external-valkey
-```
-
 **Note:** If your Redis/Valkey instance doesn't require authentication, you can omit `VALKEY_PASSWORD`.
+
+**Required PostgreSQL Permissions:**
+- The `POSTGRES_ADMIN_USER` needs: `CREATE`, `ALTER`, `DROP` on the database (for migrations)
+- The `POSTGRES_USER` will be created by the admin user with necessary permissions
+
+The credentials are automatically loaded from these secrets via `secretKeyRef` in the deployments.
+
+For detailed examples with cloud-specific configurations (AWS RDS, Azure Database, GCP Cloud SQL), see [examples/](../../examples/).
 
 ### Security
 

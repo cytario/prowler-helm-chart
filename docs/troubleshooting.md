@@ -126,12 +126,15 @@ django.db.utils.OperationalError: FATAL: password authentication failed for user
 
 **Solution:**
 ```bash
-# Check PostgreSQL credentials
-kubectl get secret prowler-api-postgres -n prowler -o jsonpath='{.data.POSTGRES_ADMIN_PASSWORD}' | base64 -d
+# Verify external database secrets exist and are correct
+kubectl get secret prowler-postgres-secret -n prowler
+kubectl describe secret prowler-postgres-secret -n prowler
 
-# If using external DB, verify secret exists and is correct
-kubectl get secret prowler-external-postgresql -n prowler
-kubectl describe secret prowler-external-postgresql -n prowler
+kubectl get secret prowler-valkey-secret -n prowler
+kubectl describe secret prowler-valkey-secret -n prowler
+
+# Check specific credential
+kubectl get secret prowler-postgres-secret -n prowler -o jsonpath='{.data.POSTGRES_ADMIN_PASSWORD}' | base64 -d
 ```
 
 #### 2. Invalid Django Keys

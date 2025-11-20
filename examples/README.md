@@ -27,7 +27,7 @@ Demonstrates a full production deployment with:
 ```bash
 # 1. Create external database secrets first
 kubectl create namespace prowler
-kubectl create secret generic prowler-api-external-db -n prowler \
+kubectl create secret generic prowler-postgres-secret -n prowler \
   --from-literal=POSTGRES_HOST=your-db-endpoint \
   --from-literal=POSTGRES_PORT=5432 \
   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
@@ -36,7 +36,7 @@ kubectl create secret generic prowler-api-external-db -n prowler \
   --from-literal=POSTGRES_PASSWORD=your-user-password \
   --from-literal=POSTGRES_DB=prowler_db
 
-kubectl create secret generic prowler-api-external-valkey -n prowler \
+kubectl create secret generic prowler-valkey-secret -n prowler \
   --from-literal=VALKEY_HOST=your-cache-endpoint \
   --from-literal=VALKEY_PORT=6379 \
   --from-literal=VALKEY_PASSWORD=your-valkey-password \
