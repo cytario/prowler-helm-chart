@@ -1,0 +1,429 @@
+# AWS EKS Configuration Example for Prowler Helm Chart
+#
+# This example demonstrates deployment on Amazon EKS with:
+# - IAM Roles for Service Accounts (IRSA) for secure AWS credentials
+# - AWS Load Balancer Controller for ingress
+# - Amazon RDS for PostgreSQL
+# - Amazon ElastiCache for Redis
+# - EBS CSI driver for persistent storage
+# - VPC networking integration
+#
+# Prerequisites:
+#   1. EKS cluster with OIDC provider configured
+#   2. AWS Load Balancer Controller installed
+#   3. EBS CSI driver installed
+#   4. IAM role created for Prowler with trust relationship to EKS OIDC
+#   5. RDS PostgreSQL instance created
+#   6. ElastiCache Redis cluster created
+#
+# Usage:
+#   helm install prowler prowler/prowler -f values-aws.yaml
+#
+
+# Global settings
+global:
+  domain: prowler.example.com
+
+# UI Configuration
+ui:
+  replicaCount: 2
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  # AWS-specific affinity to spread across AZs
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: ui
+
+  env:
+    - name: NEXT_PUBLIC_API_BASE_URL
+      value: "https://prowler.example.com/api"
+    - name: AUTH_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: prowler-ui-secrets
+          key: AUTH_SECRET
+
+# API Configuration
+api:
+  replicaCount: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+  # AWS-specific affinity to spread across AZs
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: api
+
+  env:
+    - name: DJANGO_ALLOWED_HOSTS
+      value: "prowler.example.com,*.elb.amazonaws.com"
+    - name: DJANGO_DEBUG
+      value: "False"
+    - name: AWS_REGION
+      value: "us-east-1"
+    # AWS credentials are provided via IRSA (no need for static credentials)
+
+# Worker Configuration
+worker:
+  replicaCount: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+
+  # AWS-specific configuration
+  env:
+    - name: AWS_REGION
+      value: "us-east-1"
+    - name: AWS_DEFAULT_REGION
+      value: "us-east-1"
+    # Prowler-specific AWS configuration
+    - name: PROWLER_AWS_SCAN_REGIONS
+      value: "us-east-1,us-west-2,eu-west-1"  # Scan specific regions
+    # AWS credentials provided via IRSA
+
+# Worker Beat Configuration
+worker_beat:
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ============================================================================
+# Amazon RDS PostgreSQL and ElastiCache Redis Configuration
+# ============================================================================
+#
+# This chart requires external PostgreSQL and Valkey/Redis instances.
+# Create the required secrets before deploying:
+#
+# Option 1: Manual secret creation
+# ---------------------------------
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=prowler-db.abc123.us-east-1.rds.amazonaws.com \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=prowler-redis.abc123.0001.use1.cache.amazonaws.com \
+#   --from-literal=VALKEY_PORT=6379 \
+#   --from-literal=VALKEY_PASSWORD=your-elasticache-auth-token \
+#   --from-literal=VALKEY_DB=0
+#
+# Option 2: Using AWS Secrets Manager + External Secrets Operator (Recommended)
+# ------------------------------------------------------------------------------
+# 1. Store credentials in AWS Secrets Manager:
+#
+# aws secretsmanager create-secret \
+#   --name prowler/postgresql \
+#   --secret-string '{
+#     "POSTGRES_HOST":"prowler-db.abc123.us-east-1.rds.amazonaws.com",
+#     "POSTGRES_PORT":"5432",
+#     "POSTGRES_ADMIN_USER":"prowler_admin",
+#     "POSTGRES_ADMIN_PASSWORD":"your-admin-password",
+#     "POSTGRES_USER":"prowler",
+#     "POSTGRES_PASSWORD":"your-user-password",
+#     "POSTGRES_DB":"prowler"
+#   }'
+#
+# aws secretsmanager create-secret \
+#   --name prowler/valkey \
+#   --secret-string '{
+#     "VALKEY_HOST":"prowler-redis.abc123.0001.use1.cache.amazonaws.com",
+#     "VALKEY_PORT":"6379",
+#     "VALKEY_PASSWORD":"your-elasticache-auth-token",
+#     "VALKEY_DB":"0"
+#   }'
+#
+# 2. Create ExternalSecret resources to sync to Kubernetes:
+#
+# apiVersion: external-secrets.io/v1beta1
+# kind: ExternalSecret
+# metadata:
+#   name: prowler-postgres-secret
+#   namespace: prowler
+# spec:
+#   refreshInterval: 1h
+#   secretStoreRef:
+#     name: aws-secrets-manager
+#     kind: SecretStore
+#   target:
+#     name: prowler-postgres-secret
+#   dataFrom:
+#   - extract:
+#       key: prowler/postgresql
+#
+# (Similar for prowler-valkey-secret)
+
+# Service Account with IRSA (IAM Roles for Service Accounts)
+serviceAccount:
+  create: true
+  annotations:
+    # IMPORTANT: Replace with your actual IAM role ARN
+    # This role should have permissions to:
+    # - Scan AWS resources (SecurityAudit + ViewOnlyAccess policies recommended)
+    # - Access RDS (if using IAM authentication)
+    # - Access ElastiCache
+    # - Access S3 for report storage (if configured)
+    eks.amazonaws.com/role-arn: "arn:aws:iam::123456789012:role/prowler-eks-role"
+
+# Ingress Configuration using AWS Load Balancer Controller
+ingress:
+  enabled: true
+  className: "alb"  # AWS Load Balancer Controller
+
+  annotations:
+    # AWS Load Balancer Controller annotations
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/load-balancer-name: prowler-alb
+
+    # SSL/TLS Configuration
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:123456789012:certificate/abc-123-def-456"
+
+    # Health check configuration
+    alb.ingress.kubernetes.io/healthcheck-path: /api/health
+    alb.ingress.kubernetes.io/healthcheck-interval-seconds: '30'
+    alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
+    alb.ingress.kubernetes.io/healthy-threshold-count: '2'
+    alb.ingress.kubernetes.io/unhealthy-threshold-count: '3'
+
+    # Network configuration
+    alb.ingress.kubernetes.io/subnets: subnet-abc123,subnet-def456,subnet-ghi789  # Public subnets
+    alb.ingress.kubernetes.io/security-groups: sg-0123456789abcdef0  # ALB security group
+
+    # Target group attributes
+    alb.ingress.kubernetes.io/target-group-attributes: |
+      stickiness.enabled=true,
+      stickiness.lb_cookie.duration_seconds=86400,
+      deregistration_delay.timeout_seconds=30
+
+    # WAF integration (optional)
+    # alb.ingress.kubernetes.io/wafv2-acl-arn: "arn:aws:wafv2:us-east-1:123456789012:regional/webacl/prowler-waf/a1b2c3d4"
+
+    # Tags
+    alb.ingress.kubernetes.io/tags: |
+      Environment=production,
+      Application=prowler,
+      ManagedBy=helm
+
+  hosts:
+    - host: prowler.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: prowler-api
+              port: 8080
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: prowler-ui
+              port: 3000
+
+  tls:
+    - hosts:
+        - prowler.example.com
+
+# Shared Storage using EBS CSI Driver
+sharedStorage:
+  enabled: true
+  # EBS CSI storage class for EFS would be better for ReadWriteMany
+  # Option 1: EFS (Recommended for ReadWriteMany)
+  storageClass: "efs-sc"
+  size: 50Gi
+  accessMode: ReadWriteMany
+
+  # Option 2: EBS (only supports ReadWriteOnce, needs StatefulSet)
+  # storageClass: "gp3"
+  # size: 50Gi
+  # accessMode: ReadWriteOnce
+
+# AWS-specific Node Affinity
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: eks.amazonaws.com/capacityType
+              operator: In
+              values:
+                - ON_DEMAND  # Prefer on-demand over spot for stability
+      - weight: 50
+        preference:
+          matchExpressions:
+            - key: node.kubernetes.io/instance-type
+              operator: In
+              values:
+                - m5.xlarge
+                - m5.2xlarge
+                - c5.xlarge  # Compute-optimized for workers
+
+  # Pod anti-affinity to spread across AZs
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - prowler
+          topologyKey: topology.kubernetes.io/zone
+
+# Tolerations for spot instances (optional)
+tolerations: []
+  # Uncomment to allow scheduling on spot instances:
+  # - key: "eks.amazonaws.com/capacityType"
+  #   operator: "Equal"
+  #   value: "SPOT"
+  #   effect: "NoSchedule"
+
+# Network Policy for VPC security
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # Allow egress to AWS services via VPC endpoints
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432  # RDS PostgreSQL
+        - protocol: TCP
+          port: 6379  # ElastiCache Redis
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443  # AWS API endpoints (via VPC endpoints)
+
+# Monitoring with CloudWatch Container Insights
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+  # CloudWatch integration
+  cloudwatch:
+    enabled: true
+    region: us-east-1
+    logGroupName: /aws/eks/prowler/application
+
+# Backup Configuration using AWS Backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: 7
+  # EFS backup via AWS Backup service
+  awsBackup:
+    enabled: true
+    backupVaultName: "prowler-backup-vault"
+
+# Additional AWS-specific labels
+commonLabels:
+  environment: "production"
+  platform: "aws-eks"
+  region: "us-east-1"
+
+# Cost allocation tags
+commonAnnotations:
+  cost-center: "security"
+  project: "prowler"
+
+#
+# Additional AWS Integration Notes:
+#
+# 1. IAM Role Trust Policy for IRSA:
+#    {
+#      "Version": "2012-10-17",
+#      "Statement": [
+#        {
+#          "Effect": "Allow",
+#          "Principal": {
+#            "Federated": "arn:aws:iam::123456789012:oidc-provider/oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B716D3041E"
+#          },
+#          "Action": "sts:AssumeRoleWithWebIdentity",
+#          "Condition": {
+#            "StringEquals": {
+#              "oidc.eks.us-east-1.amazonaws.com/id/EXAMPLED539D4633E53DE1B716D3041E:sub": "system:serviceaccount:prowler:prowler"
+#            }
+#          }
+#        }
+#      ]
+#    }
+#
+# 2. IAM Policy for Prowler scanning:
+#    Attach AWS managed policies:
+#    - arn:aws:iam::aws:policy/SecurityAudit
+#    - arn:aws:iam::aws:policy/job-function/ViewOnlyAccess
+#
+# 3. EFS CSI Driver installation:
+#    kubectl apply -k "github.com/kubernetes-sigs/aws-efs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.7"
+#
+# 4. Create EFS filesystem and mount targets in all AZs:
+#    aws efs create-file-system --performance-mode generalPurpose --throughput-mode bursting
+#
+# 5. External Secrets Operator (optional, for syncing AWS Secrets Manager):
+#    helm repo add external-secrets https://charts.external-secrets.io
+#    helm install external-secrets external-secrets/external-secrets -n external-secrets-system --create-namespace

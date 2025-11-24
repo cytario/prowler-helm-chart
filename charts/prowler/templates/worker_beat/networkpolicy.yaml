@@ -1,0 +1,39 @@
+{{- if .Values.api.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "prowler.fullname" . }}-worker-beat
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker-beat
+  policyTypes:
+  - Egress
+  egress:
+  # Allow egress to external Valkey (for scheduling)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 6379
+  # Allow egress to external PostgreSQL (for task state)
+  - to:
+    - namespaceSelector: {}
+    ports:
+    - protocol: TCP
+      port: 5432
+  # Allow DNS resolution
+  - to:
+    - namespaceSelector: {}
+      podSelector:
+        matchLabels:
+          k8s-app: kube-dns
+    ports:
+    - protocol: UDP
+      port: 53
+  {{- with .Values.api.networkPolicy.egress }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end -}}

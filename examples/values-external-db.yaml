@@ -1,0 +1,242 @@
+# External Database Configuration Example
+#
+# This example shows how to configure Prowler to use external managed databases
+# instead of the bundled PostgreSQL and Valkey/Redis instances.
+#
+# Benefits of external databases:
+# - Managed backups and point-in-time recovery
+# - Automatic failover and high availability
+# - Better performance with optimized hardware
+# - Separation of database lifecycle from application
+# - Enhanced security with private endpoints
+#
+# Supported Services:
+# - PostgreSQL: AWS RDS, Azure Database for PostgreSQL, Google Cloud SQL, etc.
+# - Valkey/Redis: AWS ElastiCache, Azure Cache for Redis, Google Memorystore, etc.
+#
+# Usage:
+#   helm install prowler charts/prowler -f examples/values-external-db.yaml
+
+# Note: This chart requires external PostgreSQL and Valkey instances.
+# The credentials are automatically loaded from the required secrets:
+#   - prowler-postgres-secret
+#   - prowler-valkey-secret
+#
+# See detailed instructions below for creating these secrets.
+
+# ============================================================================
+# REQUIRED: Create External PostgreSQL Secret
+# ============================================================================
+#
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=your-db-instance.region.rds.amazonaws.com \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-secure-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-secure-user-password \
+#   --from-literal=POSTGRES_DB=prowler_db
+#
+# Required PostgreSQL setup:
+# 1. Create the database: CREATE DATABASE prowler_db;
+# 2. Create the admin user with full privileges:
+#    CREATE USER prowler_admin WITH PASSWORD 'your-secure-admin-password';
+#    GRANT ALL PRIVILEGES ON DATABASE prowler_db TO prowler_admin;
+# 3. The application will create the prowler user automatically on first run
+#
+# Minimum PostgreSQL version: 12+
+# Recommended PostgreSQL version: 15+
+#
+# Required PostgreSQL extensions (installed by migrations):
+# - None (uses standard PostgreSQL features)
+#
+# AWS RDS Example:
+# - Instance class: db.t3.medium or larger
+# - Storage: 100 GB GP3 with autoscaling
+# - Multi-AZ: Enabled for high availability
+# - Backup retention: 7-30 days
+# - Connection pooling: Consider using RDS Proxy
+#
+# Azure Database for PostgreSQL Example:
+# - Tier: General Purpose
+# - Compute: 2-4 vCores
+# - Storage: 100 GB with autoscaling
+# - High Availability: Zone-redundant
+# - Backup retention: 7-35 days
+#
+# Google Cloud SQL Example:
+# - Machine type: db-custom-2-7680 or larger
+# - Storage: 100 GB SSD with autoscaling
+# - High Availability: Regional
+# - Automated backups: Enabled
+
+# ============================================================================
+# REQUIRED: Create External Valkey/Redis Secret
+# ============================================================================
+#
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=your-cache.region.cache.amazonaws.com \
+#   --from-literal=VALKEY_PORT=6379 \
+#   --from-literal=VALKEY_PASSWORD=your-secure-redis-password \
+#   --from-literal=VALKEY_DB=0
+#
+# Note: If your Redis/Valkey instance doesn't use authentication, omit VALKEY_PASSWORD
+#
+# Minimum Redis version: 6.0+
+# Recommended Redis version: 7.0+
+#
+# AWS ElastiCache for Redis Example:
+# - Node type: cache.t3.medium or larger
+# - Number of replicas: 2+ for high availability
+# - Multi-AZ: Enabled
+# - Encryption: In-transit and at-rest enabled
+# - Automatic failover: Enabled
+#
+# Azure Cache for Redis Example:
+# - Tier: Standard or Premium
+# - Capacity: C1 (1 GB) or larger
+# - Clustering: Disabled (single shard sufficient)
+# - Persistence: RDB or AOF for data durability
+# - Geo-replication: For disaster recovery (Premium tier)
+#
+# Google Memorystore for Redis Example:
+# - Tier: Standard (with HA replica)
+# - Memory: 1 GB or larger
+# - Version: Redis 6.x or 7.x
+# - Connect mode: Private service access
+
+# ---
+# Network Configuration
+# ---
+#
+# Important: Ensure your Kubernetes cluster can reach the external databases
+#
+# Private Endpoint Setup:
+# 1. AWS VPC: Configure VPC peering or PrivateLink
+# 2. Azure VNet: Use VNet integration or Private Link
+# 3. Google VPC: Configure VPC peering or Private Service Connect
+#
+# Security Groups / Firewall Rules:
+# - PostgreSQL: Allow TCP 5432 from cluster CIDR
+# - Redis/Valkey: Allow TCP 6379 from cluster CIDR
+#
+# SSL/TLS Configuration:
+# - Enable SSL for PostgreSQL connections (required for most managed services)
+# - Enable TLS for Redis connections (recommended)
+# - Consider using connection pooling (PgBouncer, RDS Proxy)
+
+# ---
+# Performance Tuning
+# ---
+#
+# PostgreSQL Connection Pooling:
+# - Consider using PgBouncer or RDS Proxy to manage connection pooling
+# - Each API pod can use 10-20 connections
+# - Each Worker pod can use 5-10 connections
+# - Max connections = (API replicas × 20) + (Worker replicas × 10) + buffer
+#
+# Redis/Valkey Performance:
+# - Use Redis in non-clustered mode for Celery (simpler configuration)
+# - Enable persistence (AOF or RDB) for task queue durability
+# - Monitor memory usage and eviction policies
+#
+# Monitoring:
+# - Enable CloudWatch/Azure Monitor/Cloud Monitoring metrics
+# - Set up alerts for:
+#   * High CPU utilization (>80%)
+#   * High memory usage (>80%)
+#   * Connection pool exhaustion
+#   * Slow queries (>1 second)
+#   * Replication lag (if applicable)
+
+# ---
+# Cost Optimization
+# ---
+#
+# Development/Testing:
+# - Use smaller instance types (db.t3.small, cache.t3.micro)
+# - Single-AZ deployment
+# - Reduce backup retention
+# - Consider stopping instances when not in use
+#
+# Production:
+# - Right-size based on actual usage metrics
+# - Use Reserved Instances or Savings Plans (AWS)
+# - Use Azure Reserved Capacity or Google Committed Use Discounts
+# - Enable autoscaling for storage
+# - Review and optimize slow queries
+#
+# Multi-tenancy:
+# - Share database instances across multiple Prowler deployments
+# - Use separate databases per environment (namespace-based separation)
+
+# ---
+# Backup and Disaster Recovery
+# ---
+#
+# Backup Strategy:
+# 1. Automated daily backups (managed service feature)
+# 2. Point-in-time recovery enabled
+# 3. Cross-region backup replication (for critical deployments)
+# 4. Test restore procedures regularly
+#
+# PostgreSQL Backup:
+# - Retention: 7-30 days (compliance dependent)
+# - Backup window: During low-traffic hours
+# - Export critical data periodically with pg_dump
+#
+# Redis/Valkey Backup:
+# - AOF persistence for maximum durability
+# - RDB snapshots for point-in-time recovery
+# - Note: Celery tasks can be requeued if Redis data is lost
+
+# ---
+# Migration from Built-in to External Databases
+# ---
+#
+# Step 1: Create external database instances
+# Step 2: Export data from built-in databases:
+#   kubectl exec -n prowler prowler-postgresql-0 -- pg_dump -U postgres prowler_db > backup.sql
+# Step 3: Import to external database:
+#   psql -h your-rds-endpoint -U prowler_admin -d prowler_db < backup.sql
+# Step 4: Create secrets with external database credentials
+# Step 5: Update Helm values to use external databases
+# Step 6: Upgrade Helm release:
+#   helm upgrade prowler charts/prowler -f examples/values-external-db.yaml
+# Step 7: Verify all pods are running and connected
+# Step 8: Test functionality (login, create scan, etc.)
+# Step 9: Clean up old built-in database resources
+
+# ---
+# Troubleshooting
+# ---
+#
+# Connection Issues:
+# Q: Pods can't connect to external database
+# A: Check:
+#   - Network connectivity (VPC peering, security groups)
+#   - Credentials in secrets are correct
+#   - Database host and port are correct
+#   - SSL/TLS requirements (some managed services require SSL)
+#
+# Authentication Errors:
+# Q: "FATAL: password authentication failed"
+# A: Check:
+#   - Password in secret matches database user password
+#   - User has necessary privileges
+#   - Database allows connections from cluster CIDR
+#
+# Migration Errors:
+# Q: Django migrations fail to run
+# A: Check:
+#   - POSTGRES_ADMIN_USER has CREATE TABLE privileges
+#   - Database is empty or has compatible schema version
+#   - Check API pod logs: kubectl logs -n prowler -l app.kubernetes.io/component=api
+#
+# Performance Issues:
+# Q: Slow query performance
+# A: Check:
+#   - Database instance is appropriately sized
+#   - Connection pooling is configured
+#   - Indexes are created (done automatically by migrations)
+#   - Monitor database metrics in cloud console

@@ -1,0 +1,483 @@
+# Azure AKS Configuration Example for Prowler Helm Chart
+#
+# This example demonstrates deployment on Azure Kubernetes Service with:
+# - Azure Workload Identity for secure Azure credentials
+# - Application Gateway Ingress Controller
+# - Azure Database for PostgreSQL
+# - Azure Cache for Redis
+# - Azure Disk storage with Premium SSD
+# - Azure Monitor integration
+#
+# Prerequisites:
+#   1. AKS cluster with OIDC issuer and Workload Identity enabled
+#   2. Application Gateway Ingress Controller installed
+#   3. Azure Disk CSI driver (included by default in AKS)
+#   4. Managed Identity created for Prowler
+#   5. Azure Database for PostgreSQL created
+#   6. Azure Cache for Redis created
+#
+# Usage:
+#   helm install prowler prowler/prowler -f values-azure.yaml
+#
+
+# Global settings
+global:
+  domain: prowler.example.com
+
+# UI Configuration
+ui:
+  replicaCount: 2
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  # Azure-specific affinity to spread across availability zones
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: ui
+
+  env:
+    - name: NEXT_PUBLIC_API_BASE_URL
+      value: "https://prowler.example.com/api"
+    - name: AUTH_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: prowler-ui-secrets
+          key: AUTH_SECRET
+
+# API Configuration
+api:
+  replicaCount: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+  # Azure-specific affinity
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: api
+
+  env:
+    - name: DJANGO_ALLOWED_HOSTS
+      value: "prowler.example.com,*.cloudapp.azure.com"
+    - name: DJANGO_DEBUG
+      value: "False"
+    - name: AZURE_SUBSCRIPTION_ID
+      value: "00000000-0000-0000-0000-000000000000"
+    # Azure credentials provided via Workload Identity (no static credentials)
+
+# Worker Configuration
+worker:
+  replicaCount: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+
+  # Azure-specific configuration
+  env:
+    - name: AZURE_SUBSCRIPTION_ID
+      value: "00000000-0000-0000-0000-000000000000"
+    - name: AZURE_TENANT_ID
+      value: "00000000-0000-0000-0000-000000000000"
+    # Prowler-specific Azure configuration
+    - name: PROWLER_AZURE_SUBSCRIPTION_ID
+      value: "00000000-0000-0000-0000-000000000000"
+    # Azure credentials provided via Workload Identity
+
+# Worker Beat Configuration
+worker_beat:
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+# ============================================================================
+# Azure Database for PostgreSQL and Azure Cache for Redis Configuration
+# ============================================================================
+#
+# This chart requires external PostgreSQL and Valkey/Redis instances.
+# Create the required secrets before deploying:
+#
+# Option 1: Manual secret creation
+# ---------------------------------
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=prowler-db.postgres.database.azure.com \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=prowler-redis.redis.cache.windows.net \
+#   --from-literal=VALKEY_PORT=6380 \
+#   --from-literal=VALKEY_PASSWORD=your-redis-access-key \
+#   --from-literal=VALKEY_DB=0
+#
+# Option 2: Using Azure Key Vault + Secrets Store CSI Driver (Recommended)
+# -------------------------------------------------------------------------
+# 1. Store credentials in Azure Key Vault:
+#
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-host --value "prowler-db.postgres.database.azure.com"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-port --value "5432"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-admin-user --value "prowler_admin"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-admin-password --value "your-admin-password"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-user --value "prowler"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-password --value "your-user-password"
+# az keyvault secret set --vault-name prowler-keyvault \
+#   --name postgres-db --value "prowler"
+#
+# 2. Create SecretProviderClass to sync to Kubernetes secret:
+#
+# apiVersion: secrets-store.csi.x-k8s.io/v1
+# kind: SecretProviderClass
+# metadata:
+#   name: prowler-postgres-secret-provider
+#   namespace: prowler
+# spec:
+#   provider: azure
+#   secretObjects:
+#   - secretName: prowler-postgres-secret
+#     type: Opaque
+#     data:
+#     - objectName: postgres-host
+#       key: POSTGRES_HOST
+#     - objectName: postgres-port
+#       key: POSTGRES_PORT
+#     - objectName: postgres-admin-user
+#       key: POSTGRES_ADMIN_USER
+#     - objectName: postgres-admin-password
+#       key: POSTGRES_ADMIN_PASSWORD
+#     - objectName: postgres-user
+#       key: POSTGRES_USER
+#     - objectName: postgres-password
+#       key: POSTGRES_PASSWORD
+#     - objectName: postgres-db
+#       key: POSTGRES_DB
+#   parameters:
+#     keyvaultName: "prowler-keyvault"
+#     tenantId: "your-tenant-id"
+#     usePodIdentity: "false"
+#     useVMManagedIdentity: "true"
+#     objects: |
+#       array:
+#         - objectName: postgres-host
+#           objectType: secret
+#         - objectName: postgres-port
+#           objectType: secret
+#         - objectName: postgres-admin-user
+#           objectType: secret
+#         - objectName: postgres-admin-password
+#           objectType: secret
+#         - objectName: postgres-user
+#           objectType: secret
+#         - objectName: postgres-password
+#           objectType: secret
+#         - objectName: postgres-db
+#           objectType: secret
+#
+# (Similar SecretProviderClass for prowler-valkey-secret)
+#
+# Note: Azure Database for PostgreSQL requires SSL (sslmode=require)
+# Note: Azure Cache for Redis uses port 6380 (SSL) instead of 6379
+
+# Service Account with Azure Workload Identity
+serviceAccount:
+  create: true
+  annotations:
+    # IMPORTANT: Replace with your actual Managed Identity Client ID
+    # This identity should have:
+    # - Reader role on subscription(s) to scan
+    # - Contributor role on resource groups (if needed)
+    # - Access to Azure Database for PostgreSQL
+    # - Access to Azure Cache for Redis
+    # - Access to Azure Storage (if using for reports)
+    azure.workload.identity/client-id: "00000000-0000-0000-0000-000000000000"
+    azure.workload.identity/tenant-id: "00000000-0000-0000-0000-000000000000"
+  labels:
+    azure.workload.identity/use: "true"
+
+# Ingress Configuration using Application Gateway Ingress Controller
+ingress:
+  enabled: true
+  className: "azure-application-gateway"
+
+  annotations:
+    # Application Gateway Ingress Controller annotations
+    appgw.ingress.kubernetes.io/ssl-redirect: "true"
+    appgw.ingress.kubernetes.io/connection-draining: "true"
+    appgw.ingress.kubernetes.io/connection-draining-timeout: "30"
+
+    # Backend settings
+    appgw.ingress.kubernetes.io/backend-path-prefix: "/"
+    appgw.ingress.kubernetes.io/request-timeout: "120"
+
+    # Health probe configuration
+    appgw.ingress.kubernetes.io/health-probe-path: "/api/health"
+    appgw.ingress.kubernetes.io/health-probe-interval: "30"
+    appgw.ingress.kubernetes.io/health-probe-timeout: "5"
+    appgw.ingress.kubernetes.io/health-probe-unhealthy-threshold: "3"
+
+    # SSL certificate from Azure Key Vault
+    appgw.ingress.kubernetes.io/appgw-ssl-certificate: "prowler-ssl-cert"
+
+    # WAF policy (optional)
+    # appgw.ingress.kubernetes.io/waf-policy-for-path: "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.Network/ApplicationGatewayWebApplicationFirewallPolicies/{waf-policy-name}"
+
+    # Cookie-based affinity
+    appgw.ingress.kubernetes.io/cookie-based-affinity: "true"
+
+  hosts:
+    - host: prowler.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: prowler-api
+              port: 8080
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: prowler-ui
+              port: 3000
+
+  tls:
+    - secretName: prowler-tls-cert
+      hosts:
+        - prowler.example.com
+
+# Shared Storage using Azure Disk with Premium SSD
+sharedStorage:
+  enabled: true
+  # Option 1: Azure Files (Recommended for ReadWriteMany)
+  storageClass: "azurefile-premium"
+  size: 50Gi
+  accessMode: ReadWriteMany
+
+  # Option 2: Azure Disk (only supports ReadWriteOnce)
+  # storageClass: "managed-premium"
+  # size: 50Gi
+  # accessMode: ReadWriteOnce
+
+# Azure-specific Node Affinity
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: agentpool
+              operator: In
+              values:
+                - agentpool  # Default node pool
+                - userpool   # User node pool
+      - weight: 50
+        preference:
+          matchExpressions:
+            - key: kubernetes.azure.com/scalesetpriority
+              operator: In
+              values:
+                - regular  # Prefer regular nodes over spot
+
+  # Pod anti-affinity to spread across zones
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - prowler
+          topologyKey: topology.kubernetes.io/zone
+
+# Tolerations for spot instances (optional)
+tolerations: []
+  # Uncomment to allow scheduling on Azure Spot VMs:
+  # - key: "kubernetes.azure.com/scalesetpriority"
+  #   operator: "Equal"
+  #   value: "spot"
+  #   effect: "NoSchedule"
+
+# Network Policy for VNet security
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # Allow egress to Azure services via Service Endpoints
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432  # Azure Database for PostgreSQL
+        - protocol: TCP
+          port: 6380  # Azure Cache for Redis (SSL)
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443  # Azure API endpoints
+
+# Monitoring with Azure Monitor
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+  # Azure Monitor integration
+  azureMonitor:
+    enabled: true
+    workspaceId: "00000000-0000-0000-0000-000000000000"
+    logAnalyticsWorkspace: "/subscriptions/{subscription-id}/resourceGroups/{resource-group}/providers/Microsoft.OperationalInsights/workspaces/{workspace-name}"
+
+# Backup Configuration using Azure Backup
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: 7
+  # Azure Files backup via Azure Backup service
+  azureBackup:
+    enabled: true
+    vaultName: "prowler-backup-vault"
+    resourceGroup: "prowler-backups-rg"
+
+# Additional Azure-specific labels
+commonLabels:
+  environment: "production"
+  platform: "azure-aks"
+  region: "eastus"
+
+# Cost allocation tags
+commonAnnotations:
+  cost-center: "security"
+  project: "prowler"
+  business-unit: "it-security"
+
+#
+# Additional Azure Integration Notes:
+#
+# 1. Enable Workload Identity on AKS cluster:
+#    az aks update \
+#      --resource-group myResourceGroup \
+#      --name myAKSCluster \
+#      --enable-oidc-issuer \
+#      --enable-workload-identity
+#
+# 2. Create Managed Identity:
+#    az identity create \
+#      --name prowler-identity \
+#      --resource-group prowler-rg \
+#      --location eastus
+#
+# 3. Establish federated identity credential:
+#    az identity federated-credential create \
+#      --name prowler-federated-credential \
+#      --identity-name prowler-identity \
+#      --resource-group prowler-rg \
+#      --issuer "$(az aks show -n myAKSCluster -g myResourceGroup --query 'oidcIssuerProfile.issuerUrl' -o tsv)" \
+#      --subject system:serviceaccount:prowler:prowler
+#
+# 4. Assign roles to Managed Identity:
+#    # Reader role for scanning
+#    az role assignment create \
+#      --assignee $(az identity show -n prowler-identity -g prowler-rg --query principalId -o tsv) \
+#      --role Reader \
+#      --scope /subscriptions/{subscription-id}
+#
+#    # Security Reader role for security scanning
+#    az role assignment create \
+#      --assignee $(az identity show -n prowler-identity -g prowler-rg --query principalId -o tsv) \
+#      --role "Security Reader" \
+#      --scope /subscriptions/{subscription-id}
+#
+# 5. Install Azure Key Vault CSI Driver (optional, for secrets):
+#    helm repo add csi-secrets-store-provider-azure https://azure.github.io/secrets-store-csi-driver-provider-azure/charts
+#    helm install csi csi-secrets-store-provider-azure/csi-secrets-store-provider-azure
+#
+# 6. Create Azure Database for PostgreSQL Flexible Server:
+#    az postgres flexible-server create \
+#      --resource-group prowler-rg \
+#      --name prowler-db \
+#      --location eastus \
+#      --admin-user prowler \
+#      --admin-password 'SECURE_PASSWORD' \
+#      --sku-name Standard_D2s_v3 \
+#      --tier GeneralPurpose \
+#      --storage-size 32 \
+#      --version 14
+#
+# 7. Create Azure Cache for Redis:
+#    az redis create \
+#      --resource-group prowler-rg \
+#      --name prowler-redis \
+#      --location eastus \
+#      --sku Premium \
+#      --vm-size P1 \
+#      --enable-non-ssl-port false
+#
+# 8. Configure AKS for Application Gateway Ingress Controller:
+#    az aks enable-addons \
+#      --resource-group myResourceGroup \
+#      --name myAKSCluster \
+#      --addons ingress-appgw \
+#      --appgw-name prowler-appgw \
+#      --appgw-subnet-cidr "10.2.0.0/16"

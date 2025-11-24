@@ -1,0 +1,122 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To learn more about the release, try:
+
+  $ helm status {{ .Release.Name }} -n {{ .Release.Namespace }}
+  $ helm get all {{ .Release.Name }} -n {{ .Release.Namespace }}
+
+=======================================================================
+  PROWLER CLOUD SECURITY PLATFORM
+=======================================================================
+
+Chart Version: {{ .Chart.Version }}
+App Version:   {{ .Chart.AppVersion }}
+
+=======================================================================
+  IMPORTANT SECURITY NOTES
+=======================================================================
+
+{{- if .Values.api.djangoConfigKeys.create }}
+⚠️  WARNING: Auto-generated Django keys are being used!
+   For production deployments, you MUST provide your own keys:
+
+   1. Generate keys:
+      openssl genrsa -out private.pem 2048
+      openssl rsa -in private.pem -pubout -out public.pem
+      openssl rand -base64 32
+
+   2. Create a secret with:
+      - DJANGO_TOKEN_SIGNING_KEY
+      - DJANGO_TOKEN_VERIFYING_KEY
+      - DJANGO_SECRETS_ENCRYPTION_KEY
+
+   3. Update values.yaml:
+      api.djangoConfigKeys.create: false
+      api.secrets: ["your-secret-name"]
+{{- end }}
+
+=======================================================================
+  ACCESSING THE APPLICATION
+=======================================================================
+
+{{- if .Values.ui.ingress.enabled }}
+{{- range .Values.ui.ingress.hosts }}
+
+UI is available at:
+  {{- if $.Values.ui.ingress.tls }}
+  https://{{ .host }}
+  {{- else }}
+  http://{{ .host }}
+  {{- end }}
+{{- end }}
+{{- else }}
+
+UI is not exposed externally. To access it:
+
+1. Port-forward to the UI service:
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "prowler.fullname" . }}-ui {{ .Values.ui.service.port }}:{{ .Values.ui.service.port }}
+
+2. Access the UI at:
+   http://localhost:{{ .Values.ui.service.port }}
+{{- end }}
+
+{{- if .Values.api.ingress.enabled }}
+{{- range .Values.api.ingress.hosts }}
+
+API is available at:
+  {{- if $.Values.api.ingress.tls }}
+  https://{{ .host }}/api/v1/docs
+  {{- else }}
+  http://{{ .host }}/api/v1/docs
+  {{- end }}
+{{- end }}
+{{- else }}
+
+To access the API directly:
+   kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "prowler.fullname" . }}-api {{ .Values.api.service.port }}:{{ .Values.api.service.port }}
+
+   API Docs: http://localhost:{{ .Values.api.service.port }}/api/v1/docs
+{{- end }}
+
+=======================================================================
+  DEPLOYED COMPONENTS
+=======================================================================
+
+✓ Prowler UI:          {{ .Values.ui.replicaCount }} replica(s)
+✓ Prowler API:         {{ .Values.api.replicaCount }} replica(s)
+✓ Celery Worker:       {{ .Values.worker.replicaCount }} replica(s)
+✓ Celery Beat:         {{ .Values.worker_beat.replicaCount }} replica(s)
+✓ PostgreSQL:          Using external instance
+✓ Valkey:              Using external instance
+
+=======================================================================
+  MONITORING THE DEPLOYMENT
+=======================================================================
+
+Check the status of all pods:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+View API logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "prowler.fullname" . }}-api --tail=50 -f
+
+View UI logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "prowler.fullname" . }}-ui --tail=50 -f
+
+View Worker logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "prowler.fullname" . }}-worker --tail=50 -f
+
+=======================================================================
+  NEXT STEPS
+=======================================================================
+
+1. Create your first user account via the UI
+2. Configure cloud provider credentials
+3. Run your first security scan
+4. Review findings and compliance reports
+
+For documentation, visit: https://prowler.com/
+For issues, visit: https://github.com/promptlylabs/prowler-helm-chart/issues
+
+Happy scanning! 🔒

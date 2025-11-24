@@ -1,0 +1,52 @@
+# AWS Configuration
+aws_region = "us-east-1"
+
+# EKS Cluster Configuration
+eks_cluster_name           = "my-eks-cluster"
+eks_cluster_endpoint       = "https://xxxxx.eks.us-east-1.amazonaws.com"
+eks_cluster_ca_certificate = "LS0tLS1CRUdJTi..." # Base64 encoded
+
+# Network Configuration
+vpc_id              = "vpc-xxxxx"
+vpc_cidr            = "10.0.0.0/16"
+database_subnet_ids = ["subnet-xxxxx", "subnet-yyyyy", "subnet-zzzzz"]
+
+# RDS Configuration
+rds_instance_class          = "db.t3.medium"
+rds_allocated_storage       = 100
+rds_max_allocated_storage   = 500
+rds_engine_version          = "16.3"
+rds_database_name           = "prowler_db"
+rds_master_username         = "prowler_admin"
+rds_master_password         = ""  # Leave empty to auto-generate
+rds_backup_retention_period = 7
+rds_multi_az                = true
+rds_storage_encrypted       = true
+rds_deletion_protection     = true
+rds_performance_insights_enabled = true
+
+# Prowler Configuration
+namespace        = "prowler"
+create_namespace = true
+release_name     = "prowler"
+
+# Chart Configuration
+# Option 1: Use local chart
+chart_path = "../../../charts/prowler"
+
+# Option 2: Use chart from repository (uncomment and configure)
+# chart_repository = "https://your-helm-repo.com"
+# chart_version    = "0.1.0"
+
+# Application Scaling
+api_replicas    = 2
+ui_replicas     = 2
+worker_replicas = 2
+
+# Tags
+tags = {
+  Environment = "production"
+  ManagedBy   = "terraform"
+  Application = "prowler"
+  Team        = "security"
+}

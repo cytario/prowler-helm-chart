@@ -13,13 +13,19 @@ spec:
       app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
   template:
     metadata:
-      {{- with .Values.api.podAnnotations }}
       annotations:
+        # Pod Security Standards
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        # Checksums to trigger automatic pod restarts on config changes
+        checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+        {{- with .Values.api.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       labels:
         {{- include "prowler.labels" . | nindent 8 }}
         app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+        # Pod Security Standards compliance label
+        pod-security.kubernetes.io/enforce: restricted
         {{- with .Values.api.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -60,20 +66,75 @@ spec:
             - secretRef:
                 name: {{ include "prowler.fullname" . }}-api-django-config-keys
             {{- end }}
-            {{- if .Values.postgresql.enabled }}
-            - secretRef:
-                name: {{ include "prowler.fullname" . }}-api-postgres
-            {{- end }}
-            {{- if .Values.valkey.enabled }}
-            - secretRef:
-                name: {{ include "prowler.fullname" . }}-api-valkey
-            {{- end }}
             {{- with .Values.api.secrets }}
             {{- range $index, $secret := . }}
             - secretRef:
                 name: {{ $secret }}
             {{- end }}
             {{- end }}
+          env:
+            # PostgreSQL connection from external secret
+            - name: POSTGRES_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_PORT
+            - name: POSTGRES_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_ADMIN_USER
+            - name: POSTGRES_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_ADMIN_PASSWORD
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-postgres-secret
+                  key: POSTGRES_DB
+            # Valkey connection from external secret
+            - name: VALKEY_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-valkey-secret
+                  key: VALKEY_HOST
+            - name: VALKEY_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-valkey-secret
+                  key: VALKEY_PORT
+            - name: VALKEY_DB
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-valkey-secret
+                  key: VALKEY_DB
+            - name: VALKEY_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: prowler-valkey-secret
+                  key: VALKEY_PASSWORD
+                  optional: true
+          {{- with .Values.api.startupProbe }}
+          startupProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.api.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -86,14 +147,52 @@ spec:
           resources:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          {{- with .Values.api.volumeMounts }}
           volumeMounts:
+            # Shared storage for scan outputs
+            - name: shared-storage
+              mountPath: {{ .Values.api.djangoConfig.DJANGO_TMP_OUTPUT_DIRECTORY }}
+            {{- if .Values.api.configStorage.enabled }}
+            # API configuration storage
+            - name: api-config
+              mountPath: /home/prowler/.config/prowler-api
+            {{- end }}
+            {{- with .Values.api.volumeMounts }}
             {{- toYaml . | nindent 12 }}
-          {{- end }}
-      {{- with .Values.api.volumes }}
+            {{- end }}
       volumes:
+        # Shared storage volume for scan outputs (shared between API and Worker)
+        - name: shared-storage
+          {{- if eq .Values.sharedStorage.type "emptyDir" }}
+          emptyDir:
+            {{- if .Values.sharedStorage.emptyDir.medium }}
+            medium: {{ .Values.sharedStorage.emptyDir.medium }}
+            {{- end }}
+            {{- if .Values.sharedStorage.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.sharedStorage.emptyDir.sizeLimit }}
+            {{- end }}
+          {{- else if eq .Values.sharedStorage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
+          {{- end }}
+        {{- if .Values.api.configStorage.enabled }}
+        # API configuration storage volume
+        - name: api-config
+          {{- if eq .Values.api.configStorage.type "emptyDir" }}
+          emptyDir:
+            {{- if .Values.api.configStorage.emptyDir.medium }}
+            medium: {{ .Values.api.configStorage.emptyDir.medium }}
+            {{- end }}
+            {{- if .Values.api.configStorage.emptyDir.sizeLimit }}
+            sizeLimit: {{ .Values.api.configStorage.emptyDir.sizeLimit }}
+            {{- end }}
+          {{- else if eq .Values.api.configStorage.type "persistentVolumeClaim" }}
+          persistentVolumeClaim:
+            claimName: {{ if .Values.api.configStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-api-config{{ else }}{{ .Values.api.configStorage.persistentVolumeClaim.existingClaim }}{{ end }}
+          {{- end }}
+        {{- end }}
+        {{- with .Values.api.volumes }}
         {{- toYaml . | nindent 8 }}
-      {{- end }}
+        {{- end }}
       {{- with .Values.api.nodeSelector }}
       nodeSelector:
         {{- toYaml . | nindent 8 }}

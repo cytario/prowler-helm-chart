@@ -1,0 +1,17 @@
+{{- if and .Values.api.configStorage.enabled (eq .Values.api.configStorage.type "persistentVolumeClaim") .Values.api.configStorage.persistentVolumeClaim.create -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "prowler.fullname" . }}-api-config
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.api.configStorage.persistentVolumeClaim.accessMode }}
+  {{- if .Values.api.configStorage.persistentVolumeClaim.storageClassName }}
+  storageClassName: {{ .Values.api.configStorage.persistentVolumeClaim.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.api.configStorage.persistentVolumeClaim.size }}
+{{- end -}}

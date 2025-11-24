@@ -1,0 +1,17 @@
+{{- if and (eq .Values.sharedStorage.type "persistentVolumeClaim") .Values.sharedStorage.persistentVolumeClaim.create -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "prowler.fullname" . }}-shared-storage
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+spec:
+  accessModes:
+    - {{ .Values.sharedStorage.persistentVolumeClaim.accessMode }}
+  {{- if .Values.sharedStorage.persistentVolumeClaim.storageClassName }}
+  storageClassName: {{ .Values.sharedStorage.persistentVolumeClaim.storageClassName }}
+  {{- end }}
+  resources:
+    requests:
+      storage: {{ .Values.sharedStorage.persistentVolumeClaim.size }}
+{{- end -}}

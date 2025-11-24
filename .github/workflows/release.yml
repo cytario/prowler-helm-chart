@@ -1,0 +1,117 @@
+name: Release
+on:
+  workflow_call:
+    outputs:
+      version:
+        description: "New version"
+        value: ${{ jobs.semantic_release.outputs.new_release_version }}
+      published:
+        description: "Whether a new release was published"
+        value: ${{ jobs.semantic_release.outputs.new_release_published }}
+
+jobs:
+  semantic_release:
+    name: Semantic Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # publish GitHub release and push changes
+      issues: write # comment on released issues
+      pull-requests: write # comment on released PRs
+    outputs:
+      new_release_published: ${{ steps.semantic.outputs.new_release_published }}
+      new_release_version: ${{ steps.semantic.outputs.new_release_version }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Semantic Release
+        id: semantic
+        uses: cycjimmy/semantic-release-action@v5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate Summary
+        if: always()
+        run: |
+          echo "## Semantic Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.semantic.outputs.new_release_published }}" == "true" ]; then
+            echo "- **Release Published**: ✓ Yes" >> $GITHUB_STEP_SUMMARY
+            echo "- **Version**: ${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Git Tag**: v${{ steps.semantic.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Release Published**: ✗ No (no changes warranting release)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  helm_release:
+    name: Helm Chart Release
+    runs-on: ubuntu-latest
+    needs: semantic_release
+    if: needs.semantic_release.outputs.new_release_published == 'true'
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Update Chart.yaml
+        run: |
+          VERSION="${{ needs.semantic_release.outputs.new_release_version }}"
+          echo "Updating Chart.yaml to version ${VERSION}"
+
+          # Update both version and appVersion to match the app release
+          sed -i "s/^version:.*/version: ${VERSION}/" charts/prowler/Chart.yaml
+          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" charts/prowler/Chart.yaml
+
+          echo "Updated Chart.yaml:"
+          cat charts/prowler/Chart.yaml
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Helm chart to GHCR
+        uses: appany/helm-oci-chart-releaser@v0.5.0
+        with:
+          name: prowler
+          repository: ${{ github.repository_owner }}
+          tag: ${{ needs.semantic_release.outputs.new_release_version }}
+          registry: ghcr.io
+          registry_username: ${{ github.repository_owner }}
+          registry_password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Chart release summary
+        if: always()
+        run: |
+          echo "## Helm Chart Release Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Chart**: prowler" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version**: ${{ needs.semantic_release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **App Version**: ${{ needs.semantic_release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Registry**: ghcr.io/${{ github.repository_owner }}/prowler" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Install command:" >> $GITHUB_STEP_SUMMARY
+          echo '```bash' >> $GITHUB_STEP_SUMMARY
+          echo "helm install prowler oci://ghcr.io/${{ github.repository_owner }}/prowler --version ${{ needs.semantic_release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY

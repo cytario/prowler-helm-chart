@@ -1,0 +1,88 @@
+{{- if .Values.api.djangoConfigKeys.create -}}
+{{- $secretName := printf "%s-api-django-config-keys" (include "prowler.fullname" .) -}}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "prowler.fullname" . }}-generate-django-keys
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+  annotations:
+    "helm.sh/hook": pre-install,pre-upgrade
+    "helm.sh/hook-weight": "-5"
+    "helm.sh/hook-delete-policy": before-hook-creation,hook-succeeded
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      name: {{ include "prowler.fullname" . }}-generate-django-keys
+    spec:
+      restartPolicy: Never
+      {{- with .Values.api.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "prowler.fullname" . }}-key-generator
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        fsGroup: 65534
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+      - name: generate-keys
+        image: bitnami/kubectl:latest
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          runAsNonRoot: true
+          runAsUser: 65534
+          capabilities:
+            drop:
+            - ALL
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          echo "Checking if Django keys secret already exists..."
+
+          # Check if secret exists
+          if kubectl get secret {{ $secretName }} -n {{ .Release.Namespace }} 2>/dev/null; then
+            echo "Secret already exists. Skipping key generation."
+            exit 0
+          fi
+
+          echo "Generating new Django keys..."
+
+          # Install openssl (bitnami/kubectl image is based on debian)
+          apt-get update -qq && apt-get install -y -qq openssl > /dev/null 2>&1
+
+          # Generate RSA key pair for JWT signing
+          openssl genrsa -out /tmp/private.pem 2048 2>/dev/null
+          openssl rsa -in /tmp/private.pem -pubout -out /tmp/public.pem 2>/dev/null
+
+          # Generate Fernet encryption key (32 bytes base64 encoded)
+          ENCRYPTION_KEY=$(openssl rand -base64 32)
+
+          # Read the keys
+          PRIVATE_KEY=$(cat /tmp/private.pem)
+          PUBLIC_KEY=$(cat /tmp/public.pem)
+
+          # Create the secret using kubectl
+          kubectl create secret generic {{ $secretName }} \
+            -n {{ .Release.Namespace }} \
+            --from-literal=DJANGO_TOKEN_SIGNING_KEY="$PRIVATE_KEY" \
+            --from-literal=DJANGO_TOKEN_VERIFYING_KEY="$PUBLIC_KEY" \
+            --from-literal=DJANGO_SECRETS_ENCRYPTION_KEY="$ENCRYPTION_KEY"
+
+          echo "Django keys generated and secret created successfully."
+
+          # Clean up
+          rm -f /tmp/private.pem /tmp/public.pem
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+      volumes:
+      - name: tmp
+        emptyDir: {}
+{{- end -}}

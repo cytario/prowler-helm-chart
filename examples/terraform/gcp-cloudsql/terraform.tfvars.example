@@ -1,0 +1,59 @@
+# GCP Configuration
+gcp_project_id = "my-gcp-project"
+gcp_region     = "us-central1"
+
+# GKE Cluster Configuration
+gke_cluster_name           = "prowler-gke"
+gke_cluster_endpoint       = "xx.xx.xx.xx"
+gke_cluster_ca_certificate = "LS0tLS1CRUdJTi..."  # Base64 encoded
+
+# Network Configuration
+vpc_network_name = "prowler-vpc"
+vpc_network_id   = "projects/my-gcp-project/global/networks/prowler-vpc"
+
+# Cloud SQL Configuration
+cloudsql_instance_name      = "prowler-postgres"
+cloudsql_database_version   = "POSTGRES_16"
+cloudsql_tier               = "db-custom-2-8192"
+cloudsql_disk_size          = 100
+cloudsql_availability_type  = "REGIONAL"  # REGIONAL or ZONAL
+cloudsql_database_name      = "prowler_db"
+cloudsql_user_name          = "prowler"
+cloudsql_user_password      = ""  # Leave empty to auto-generate
+
+# Backup Configuration
+cloudsql_backup_enabled     = true
+cloudsql_backup_start_time  = "03:00"
+cloudsql_pitr_enabled       = true
+cloudsql_retained_backups   = 7
+
+# Features
+cloudsql_insights_enabled     = true
+cloudsql_ipv4_enabled         = false  # Keep false for private IP only
+cloudsql_deletion_protection  = true
+
+# Prowler Configuration
+namespace        = "prowler"
+create_namespace = true
+release_name     = "prowler"
+
+# Chart Configuration
+# Option 1: Use local chart
+chart_path = "../../../charts/prowler"
+
+# Option 2: Use chart from repository (uncomment and configure)
+# chart_repository = "https://your-helm-repo.com"
+# chart_version    = "0.1.0"
+
+# Application Scaling
+api_replicas    = 2
+ui_replicas     = 2
+worker_replicas = 2
+
+# Labels
+labels = {
+  environment = "production"
+  managed_by  = "terraform"
+  application = "prowler"
+  team        = "security"
+}

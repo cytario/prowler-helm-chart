@@ -39,6 +39,48 @@
                     },
                     "type": "array"
                 },
+                "configStorage": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "type": {
+                            "type": "string"
+                        },
+                        "emptyDir": {
+                            "properties": {
+                                "medium": {
+                                    "type": "string"
+                                },
+                                "sizeLimit": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "persistentVolumeClaim": {
+                            "properties": {
+                                "create": {
+                                    "type": "boolean"
+                                },
+                                "existingClaim": {
+                                    "type": "string"
+                                },
+                                "storageClassName": {
+                                    "type": "string"
+                                },
+                                "accessMode": {
+                                    "type": "string"
+                                },
+                                "size": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
                 "djangoConfig": {
                     "properties": {
                         "DJANGO_ACCESS_TOKEN_LIFETIME": {
@@ -56,7 +98,13 @@
                         "DJANGO_CACHE_MAX_AGE": {
                             "type": "string"
                         },
+                        "DJANGO_CELERY_DEADLOCK_ATTEMPTS": {
+                            "type": "string"
+                        },
                         "DJANGO_DEBUG": {
+                            "type": "string"
+                        },
+                        "DJANGO_DELETION_BATCH_SIZE": {
                             "type": "string"
                         },
                         "DJANGO_FINDINGS_BATCH_SIZE": {
@@ -81,6 +129,9 @@
                             "type": "string"
                         },
                         "DJANGO_STALE_WHILE_REVALIDATE": {
+                            "type": "string"
+                        },
+                        "DJANGO_THROTTLE_TOKEN_OBTAIN": {
                             "type": "string"
                         },
                         "DJANGO_TMP_OUTPUT_DIRECTORY": {
@@ -194,6 +245,20 @@
                     "properties": {},
                     "type": "object"
                 },
+                "podDisruptionBudget": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "minAvailable": {
+                            "type": "integer"
+                        },
+                        "maxUnavailable": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                },
                 "podSecurityContext": {
                     "properties": {},
                     "type": "object"
@@ -303,6 +368,45 @@
                                 }
                             },
                             "type": "object"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
+        },
+        "sharedStorage": {
+            "properties": {
+                "type": {
+                    "type": "string"
+                },
+                "emptyDir": {
+                    "properties": {
+                        "medium": {
+                            "type": "string"
+                        },
+                        "sizeLimit": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "persistentVolumeClaim": {
+                    "properties": {
+                        "create": {
+                            "type": "boolean"
+                        },
+                        "existingClaim": {
+                            "type": "string"
+                        },
+                        "storageClassName": {
+                            "type": "string"
+                        },
+                        "accessMode": {
+                            "type": "string"
+                        },
+                        "size": {
+                            "type": "string"
                         }
                     },
                     "type": "object"
@@ -424,6 +528,20 @@
                     "properties": {},
                     "type": "object"
                 },
+                "podDisruptionBudget": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "minAvailable": {
+                            "type": "integer"
+                        },
+                        "maxUnavailable": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                },
                 "podSecurityContext": {
                     "properties": {},
                     "type": "object"
@@ -440,6 +558,28 @@
                                 }
                             },
                             "type": "object"
+                        }
+                    },
+                    "type": "object"
+                },
+                "startupProbe": {
+                    "properties": {
+                        "failureThreshold": {
+                            "type": "integer"
+                        },
+                        "httpGet": {
+                            "properties": {
+                                "path": {
+                                    "type": "string"
+                                },
+                                "port": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "periodSeconds": {
+                            "type": "integer"
                         }
                     },
                     "type": "object"
@@ -498,10 +638,13 @@
         },
         "valkey": {
             "properties": {
-                "architecture": {
-                    "type": "string"
+                "enabled": {
+                    "type": "boolean"
                 },
-                "auth": {
+                "replicaCount": {
+                    "type": "integer"
+                },
+                "dataStorage": {
                     "properties": {
                         "enabled": {
                             "type": "boolean"
@@ -509,8 +652,13 @@
                     },
                     "type": "object"
                 },
-                "enabled": {
-                    "type": "boolean"
+                "service": {
+                    "properties": {
+                        "port": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
                 }
             },
             "type": "object"
@@ -586,6 +734,20 @@
                     "properties": {},
                     "type": "object"
                 },
+                "podDisruptionBudget": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "minAvailable": {
+                            "type": "integer"
+                        },
+                        "maxUnavailable": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                },
                 "podSecurityContext": {
                     "properties": {},
                     "type": "object"
@@ -598,7 +760,8 @@
                     "type": "integer"
                 },
                 "resources": {
-                    "type": "null"
+                    "properties": {},
+                    "type": "object"
                 },
                 "securityContext": {
                     "properties": {},
@@ -703,6 +866,20 @@
                 },
                 "podLabels": {
                     "properties": {},
+                    "type": "object"
+                },
+                "podDisruptionBudget": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "minAvailable": {
+                            "type": "integer"
+                        },
+                        "maxUnavailable": {
+                            "type": "integer"
+                        }
+                    },
                     "type": "object"
                 },
                 "podSecurityContext": {

@@ -1,0 +1,550 @@
+# Google Cloud (GCP) GKE Configuration Example for Prowler Helm Chart
+#
+# This example demonstrates deployment on Google Kubernetes Engine with:
+# - Workload Identity for secure GCP credentials
+# - GCE Ingress Controller with Cloud Load Balancer
+# - Cloud SQL for PostgreSQL
+# - Memorystore for Redis
+# - Persistent Disk storage with SSD
+# - Cloud Monitoring integration
+#
+# Prerequisites:
+#   1. GKE cluster with Workload Identity enabled
+#   2. Cloud SQL instance created with private IP
+#   3. Cloud SQL Proxy or Private Service Connect configured
+#   4. Memorystore for Redis instance created
+#   5. Google Service Account created for Prowler
+#   6. Persistent Disk CSI driver (enabled by default in GKE)
+#
+# Usage:
+#   helm install prowler prowler/prowler -f values-gcp.yaml
+#
+
+# Global settings
+global:
+  domain: prowler.example.com
+
+# UI Configuration
+ui:
+  replicaCount: 2
+
+  resources:
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+    requests:
+      cpu: 250m
+      memory: 256Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+  # GCP-specific affinity to spread across zones
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: ui
+
+  env:
+    - name: NEXT_PUBLIC_API_BASE_URL
+      value: "https://prowler.example.com/api"
+    - name: AUTH_SECRET
+      valueFrom:
+        secretKeyRef:
+          name: prowler-ui-secrets
+          key: AUTH_SECRET
+
+# API Configuration
+api:
+  replicaCount: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+
+  # GCP-specific affinity
+  topologySpreadConstraints:
+    - maxSkew: 1
+      topologyKey: topology.kubernetes.io/zone
+      whenUnsatisfiable: DoNotSchedule
+      labelSelector:
+        matchLabels:
+          app.kubernetes.io/component: api
+
+  env:
+    - name: DJANGO_ALLOWED_HOSTS
+      value: "prowler.example.com,*.googleusercontent.com"
+    - name: DJANGO_DEBUG
+      value: "False"
+    - name: GOOGLE_CLOUD_PROJECT
+      value: "my-project-id"
+    - name: GCP_PROJECT_ID
+      value: "my-project-id"
+    # GCP credentials provided via Workload Identity (no static credentials)
+
+  # Cloud SQL Proxy sidecar (if not using Private Service Connect)
+  extraContainers:
+    - name: cloud-sql-proxy
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+      args:
+        - "--structured-logs"
+        - "--port=5432"
+        - "my-project-id:us-central1:prowler-db"  # Replace with your Cloud SQL connection name
+      securityContext:
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+
+# Worker Configuration
+worker:
+  replicaCount: 3
+
+  resources:
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+    requests:
+      cpu: 500m
+      memory: 512Mi
+
+  autoscaling:
+    enabled: true
+    minReplicas: 3
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 75
+
+  # GCP-specific configuration
+  env:
+    - name: GOOGLE_CLOUD_PROJECT
+      value: "my-project-id"
+    - name: GCP_PROJECT_ID
+      value: "my-project-id"
+    # Prowler-specific GCP configuration
+    - name: PROWLER_GCP_PROJECT_IDS
+      value: "project-1,project-2,project-3"  # Projects to scan
+    # GCP credentials provided via Workload Identity
+
+  # Cloud SQL Proxy sidecar
+  extraContainers:
+    - name: cloud-sql-proxy
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+      args:
+        - "--structured-logs"
+        - "--port=5432"
+        - "my-project-id:us-central1:prowler-db"
+      securityContext:
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+
+# Worker Beat Configuration
+worker_beat:
+  replicaCount: 1
+
+  resources:
+    limits:
+      cpu: 500m
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 128Mi
+
+  # Cloud SQL Proxy sidecar
+  extraContainers:
+    - name: cloud-sql-proxy
+      image: gcr.io/cloud-sql-connectors/cloud-sql-proxy:2.8.0
+      args:
+        - "--structured-logs"
+        - "--port=5432"
+        - "my-project-id:us-central1:prowler-db"
+      securityContext:
+        runAsNonRoot: true
+        allowPrivilegeEscalation: false
+      resources:
+        requests:
+          memory: "128Mi"
+          cpu: "100m"
+        limits:
+          memory: "256Mi"
+          cpu: "200m"
+
+# ============================================================================
+# Cloud SQL PostgreSQL and Memorystore for Redis Configuration
+# ============================================================================
+#
+# This chart requires external PostgreSQL and Valkey/Redis instances.
+# Create the required secrets before deploying:
+#
+# Option 1: Manual secret creation
+# ---------------------------------
+# For Cloud SQL with Cloud SQL Proxy sidecar (connects to localhost):
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=127.0.0.1 \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# For Cloud SQL with Private Service Connect (direct connection):
+# kubectl create secret generic prowler-postgres-secret -n prowler \
+#   --from-literal=POSTGRES_HOST=10.123.45.67 \
+#   --from-literal=POSTGRES_PORT=5432 \
+#   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+#   --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+#   --from-literal=POSTGRES_USER=prowler \
+#   --from-literal=POSTGRES_PASSWORD=your-user-password \
+#   --from-literal=POSTGRES_DB=prowler
+#
+# For Memorystore for Redis:
+# kubectl create secret generic prowler-valkey-secret -n prowler \
+#   --from-literal=VALKEY_HOST=10.0.0.3 \
+#   --from-literal=VALKEY_PORT=6379 \
+#   --from-literal=VALKEY_DB=0
+#   # Note: Add VALKEY_PASSWORD only if AUTH is enabled
+#
+# Option 2: Using Secret Manager + External Secrets Operator (Recommended)
+# --------------------------------------------------------------------------
+# 1. Store credentials in Secret Manager:
+#
+# echo -n "prowler-db.us-central1.sql.goog" | \
+#   gcloud secrets create postgres-host --data-file=-
+# echo -n "5432" | \
+#   gcloud secrets create postgres-port --data-file=-
+# echo -n "prowler_admin" | \
+#   gcloud secrets create postgres-admin-user --data-file=-
+# echo -n "your-admin-password" | \
+#   gcloud secrets create postgres-admin-password --data-file=-
+# echo -n "prowler" | \
+#   gcloud secrets create postgres-user --data-file=-
+# echo -n "your-user-password" | \
+#   gcloud secrets create postgres-password --data-file=-
+# echo -n "prowler" | \
+#   gcloud secrets create postgres-db --data-file=-
+#
+# 2. Create ExternalSecret to sync to Kubernetes:
+#
+# apiVersion: external-secrets.io/v1beta1
+# kind: ExternalSecret
+# metadata:
+#   name: prowler-postgres-secret
+#   namespace: prowler
+# spec:
+#   refreshInterval: 1h
+#   secretStoreRef:
+#     name: gcpsm-secret-store
+#     kind: SecretStore
+#   target:
+#     name: prowler-postgres-secret
+#   data:
+#   - secretKey: POSTGRES_HOST
+#     remoteRef:
+#       key: postgres-host
+#   - secretKey: POSTGRES_PORT
+#     remoteRef:
+#       key: postgres-port
+#   - secretKey: POSTGRES_ADMIN_USER
+#     remoteRef:
+#       key: postgres-admin-user
+#   - secretKey: POSTGRES_ADMIN_PASSWORD
+#     remoteRef:
+#       key: postgres-admin-password
+#   - secretKey: POSTGRES_USER
+#     remoteRef:
+#       key: postgres-user
+#   - secretKey: POSTGRES_PASSWORD
+#     remoteRef:
+#       key: postgres-password
+#   - secretKey: POSTGRES_DB
+#     remoteRef:
+#       key: postgres-db
+#
+# (Similar ExternalSecret for prowler-valkey-secret)
+#
+# Note: For Cloud SQL Proxy sidecar, add it to your deployments
+# Note: Memorystore Standard tier doesn't require authentication by default
+
+# Service Account with Workload Identity
+serviceAccount:
+  create: true
+  annotations:
+    # IMPORTANT: Replace with your Google Service Account email
+    # This service account should have:
+    # - Security Reviewer role for scanning
+    # - Cloud SQL Client role
+    # - Redis Admin role (for Memorystore)
+    # - Storage Admin role (if using GCS for reports)
+    iam.gke.io/gcp-service-account: "prowler@my-project-id.iam.gserviceaccount.com"
+
+# Ingress Configuration using GCE Ingress Controller
+ingress:
+  enabled: true
+  className: "gce"  # GCE Ingress Controller
+
+  annotations:
+    # GCE Ingress annotations
+    kubernetes.io/ingress.class: "gce"
+    kubernetes.io/ingress.global-static-ip-name: "prowler-ip"  # Reserve static IP first
+
+    # SSL/TLS configuration
+    networking.gke.io/managed-certificates: "prowler-cert"  # Use Google-managed certificate
+    kubernetes.io/ingress.allow-http: "false"  # HTTPS only
+
+    # Backend configuration
+    cloud.google.com/backend-config: "prowler-backend-config"
+
+    # Cloud Armor (WAF) - optional
+    # cloud.google.com/armor-config: '{"prowler-security-policy": "prowler-waf-policy"}'
+
+    # CDN configuration - optional
+    # kubernetes.io/ingress.enable-cdn: "true"
+
+    # Session affinity
+    cloud.google.com/session-affinity: "CLIENT_IP"
+
+  hosts:
+    - host: prowler.example.com
+      paths:
+        - path: /api
+          pathType: Prefix
+          backend:
+            service:
+              name: prowler-api
+              port: 8080
+        - path: /
+          pathType: Prefix
+          backend:
+            service:
+              name: prowler-ui
+              port: 3000
+
+  tls:
+    - secretName: prowler-tls-cert
+      hosts:
+        - prowler.example.com
+
+# Shared Storage using Persistent Disk
+sharedStorage:
+  enabled: true
+  # Option 1: Filestore (GCP managed NFS, supports ReadWriteMany)
+  storageClass: "filestore-premium"
+  size: 50Gi
+  accessMode: ReadWriteMany
+
+  # Option 2: Persistent Disk (only supports ReadWriteOnce)
+  # storageClass: "pd-ssd"
+  # size: 50Gi
+  # accessMode: ReadWriteOnce
+
+# GCP-specific Node Affinity
+affinity:
+  nodeAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+            - key: cloud.google.com/gke-nodepool
+              operator: In
+              values:
+                - default-pool
+                - prowler-pool
+      - weight: 50
+        preference:
+          matchExpressions:
+            - key: cloud.google.com/gke-preemptible
+              operator: DoesNotExist  # Prefer non-preemptible nodes
+
+  # Pod anti-affinity to spread across zones
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values:
+                  - prowler
+          topologyKey: topology.kubernetes.io/zone
+
+# Tolerations for preemptible nodes (optional)
+tolerations: []
+  # Uncomment to allow scheduling on preemptible VMs (for cost savings):
+  # - key: "cloud.google.com/gke-preemptible"
+  #   operator: "Equal"
+  #   value: "true"
+  #   effect: "NoSchedule"
+
+# Network Policy for VPC security
+networkPolicy:
+  enabled: true
+  policyTypes:
+    - Ingress
+    - Egress
+
+  # Allow egress to GCP services
+  egress:
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 5432  # Cloud SQL (via proxy or private IP)
+        - protocol: TCP
+          port: 6379  # Memorystore for Redis
+    - to:
+        - namespaceSelector: {}
+      ports:
+        - protocol: TCP
+          port: 443  # GCP API endpoints
+
+# Monitoring with Cloud Monitoring
+monitoring:
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+
+  # Cloud Monitoring integration
+  cloudMonitoring:
+    enabled: true
+    projectId: "my-project-id"
+
+# Backup Configuration using Cloud Storage
+backup:
+  enabled: true
+  schedule: "0 2 * * *"
+  retention: 7
+  # Filestore backup via Cloud Backup
+  gcsBackup:
+    enabled: true
+    bucketName: "prowler-backups"
+    location: "us-central1"
+
+# Additional GCP-specific labels
+commonLabels:
+  environment: "production"
+  platform: "gcp-gke"
+  region: "us-central1"
+
+# Cost allocation labels
+commonAnnotations:
+  cost-center: "security"
+  project: "prowler"
+  team: "security-ops"
+
+#
+# Additional GCP Integration Notes:
+#
+# 1. Enable Workload Identity on GKE cluster:
+#    gcloud container clusters update CLUSTER_NAME \
+#      --workload-pool=PROJECT_ID.svc.id.goog \
+#      --region=us-central1
+#
+# 2. Create Google Service Account:
+#    gcloud iam service-accounts create prowler-gsa \
+#      --display-name="Prowler Service Account"
+#
+# 3. Grant IAM roles to Service Account:
+#    # Security Reviewer for scanning
+#    gcloud projects add-iam-policy-binding PROJECT_ID \
+#      --member="serviceAccount:prowler-gsa@PROJECT_ID.iam.gserviceaccount.com" \
+#      --role="roles/iam.securityReviewer"
+#
+#    # Cloud SQL Client
+#    gcloud projects add-iam-policy-binding PROJECT_ID \
+#      --member="serviceAccount:prowler-gsa@PROJECT_ID.iam.gserviceaccount.com" \
+#      --role="roles/cloudsql.client"
+#
+#    # Additional recommended roles:
+#    # - roles/viewer (read-only access to resources)
+#    # - roles/compute.networkViewer
+#    # - roles/iam.securityReviewer
+#
+# 4. Bind Kubernetes SA to Google SA (Workload Identity):
+#    gcloud iam service-accounts add-iam-policy-binding \
+#      prowler-gsa@PROJECT_ID.iam.gserviceaccount.com \
+#      --role=roles/iam.workloadIdentityUser \
+#      --member="serviceAccount:PROJECT_ID.svc.id.goog[prowler/prowler]"
+#
+# 5. Create Cloud SQL instance:
+#    gcloud sql instances create prowler-db \
+#      --database-version=POSTGRES_14 \
+#      --tier=db-custom-2-7680 \
+#      --region=us-central1 \
+#      --network=projects/PROJECT_ID/global/networks/default \
+#      --no-assign-ip  # Private IP only
+#
+# 6. Create Memorystore for Redis:
+#    gcloud redis instances create prowler-redis \
+#      --size=5 \
+#      --region=us-central1 \
+#      --redis-version=redis_6_x \
+#      --tier=standard
+#
+# 7. Reserve static IP for Ingress:
+#    gcloud compute addresses create prowler-ip \
+#      --global
+#
+# 8. Create managed certificate:
+#    kubectl apply -f - <<EOF
+#    apiVersion: networking.gke.io/v1
+#    kind: ManagedCertificate
+#    metadata:
+#      name: prowler-cert
+#    spec:
+#      domains:
+#        - prowler.example.com
+#    EOF
+#
+# 9. Create BackendConfig for health checks and session affinity:
+#    kubectl apply -f - <<EOF
+#    apiVersion: cloud.google.com/v1
+#    kind: BackendConfig
+#    metadata:
+#      name: prowler-backend-config
+#    spec:
+#      healthCheck:
+#        checkIntervalSec: 30
+#        timeoutSec: 5
+#        healthyThreshold: 2
+#        unhealthyThreshold: 3
+#        type: HTTP
+#        requestPath: /api/health
+#        port: 8080
+#      sessionAffinity:
+#        affinityType: "CLIENT_IP"
+#        affinityCookieTtlSec: 86400
+#      timeoutSec: 120
+#    EOF
+#
+# 10. Install Filestore CSI driver (for ReadWriteMany):
+#     kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gcp-filestore-csi-driver/master/deploy/kubernetes/base/controller.yaml
+#     kubectl apply -f https://raw.githubusercontent.com/kubernetes-sigs/gcp-filestore-csi-driver/master/deploy/kubernetes/base/node.yaml
