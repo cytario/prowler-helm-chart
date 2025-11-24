@@ -5,7 +5,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "https://github.com/promptlylabs/prowler-helm-chart.git"
+    "url": "git@github.com:cytario/prowler-helm-chart.git"
   },
   "author": "",
   "license": "Apache-2.0",
