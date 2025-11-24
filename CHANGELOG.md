@@ -2,6 +2,36 @@
 
 All notable changes to this project will be documented in this file.
 
+## 1.0.0 (2025-11-24)
+
+### Features
+
+* add production-ready features, CI/CD and documentation ([1dd07cd](https://github.com/cytario/prowler-helm-chart/commit/1dd07cd6c75e3671ca1b0368f2cefb8473da041b))
+* Clean up Chart.yaml ([ceb8c01](https://github.com/cytario/prowler-helm-chart/commit/ceb8c019a5c54265ec8c330aaaf36e756f54347a))
+* env var setup + workers command fix ([0013b03](https://github.com/cytario/prowler-helm-chart/commit/0013b030c599bd71c7d228eb137463669c70ce32))
+* Initial Prowler components ([cb4cb94](https://github.com/cytario/prowler-helm-chart/commit/cb4cb942120cd9955a683b09cef2e2b0deb78f7d))
+* Setup env vars for configuration ([9246c51](https://github.com/cytario/prowler-helm-chart/commit/9246c51f44526aa816dff2d318939dfb3521e574))
+
+### Bug Fixes
+
+* Add ArtifactHub badge to README, README inside Chart and fix images URLs ([8850b60](https://github.com/cytario/prowler-helm-chart/commit/8850b60df38d8b9bad83091b56e9b9949dc42971))
+* add git sync step before semantic-release ([7c9cad6](https://github.com/cytario/prowler-helm-chart/commit/7c9cad6fa219b8622f83c3f65ea22b564769a25a))
+* add packages write permission to release workflow ([9f57cbd](https://github.com/cytario/prowler-helm-chart/commit/9f57cbd5c40447c4f0aa9c414a7bf6ca8c46fabe))
+* add required secrets instructions to NOTES.txt ([7de94bf](https://github.com/cytario/prowler-helm-chart/commit/7de94bfad4fe5fb917cf0b31b9ad310a6ff6ff5f))
+* Chart release github action ([b02c715](https://github.com/cytario/prowler-helm-chart/commit/b02c715d2dd3afd9c152bb99a8fd2b865e7afc3e))
+* ensure semantic-release uses latest main branch ([4c82c56](https://github.com/cytario/prowler-helm-chart/commit/4c82c56039ddfca2e3200fc002aa688a46db59a7))
+* typo in Chart.yaml ([10e1bd5](https://github.com/cytario/prowler-helm-chart/commit/10e1bd584b1dcba1487e2d2b13114a6ef456dd2f))
+* update repository URL to SSH format ([d2f4a1b](https://github.com/cytario/prowler-helm-chart/commit/d2f4a1b6e8c6251c9c6b30c75a9f9072832a0685))
+* valkey standalone mode + ServiceAccount setups ([a242ab3](https://github.com/cytario/prowler-helm-chart/commit/a242ab380b47e083e5f1342ff4b93bfa0f238046))
+
+### Documentation
+
+* update examples and documentation for new secret names ([2262fb7](https://github.com/cytario/prowler-helm-chart/commit/2262fb7f61e5190f5f2759f7037473f9409f6598))
+
+### Code Refactoring
+
+* remove chart dependencies and use external secrets ([9d5f5c0](https://github.com/cytario/prowler-helm-chart/commit/9d5f5c02fc8942fb2ff7c570e84e8357d1c20723))
+
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
