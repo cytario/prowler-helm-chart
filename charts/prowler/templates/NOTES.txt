@@ -15,6 +15,35 @@ Chart Version: {{ .Chart.Version }}
 App Version:   {{ .Chart.AppVersion }}
 
 =======================================================================
+  REQUIRED EXTERNAL SERVICES
+=======================================================================
+
+⚠️  IMPORTANT: This chart requires external PostgreSQL and Valkey/Redis.
+
+If you haven't created the required secrets yet, the pods will fail to start.
+Create these secrets now:
+
+# PostgreSQL Secret
+kubectl create secret generic prowler-postgres-secret -n {{ .Release.Namespace }} \
+  --from-literal=POSTGRES_HOST=your-postgres-host \
+  --from-literal=POSTGRES_PORT=5432 \
+  --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
+  --from-literal=POSTGRES_ADMIN_PASSWORD=your-admin-password \
+  --from-literal=POSTGRES_USER=prowler \
+  --from-literal=POSTGRES_PASSWORD=your-user-password \
+  --from-literal=POSTGRES_DB=prowler_db
+
+# Valkey/Redis Secret
+kubectl create secret generic prowler-valkey-secret -n {{ .Release.Namespace }} \
+  --from-literal=VALKEY_HOST=your-redis-host \
+  --from-literal=VALKEY_PORT=6379 \
+  --from-literal=VALKEY_DB=0 \
+  --from-literal=VALKEY_PASSWORD=your-password
+
+For detailed setup instructions, see:
+https://github.com/promptlylabs/prowler-helm-chart/tree/main/examples
+
+=======================================================================
   IMPORTANT SECURITY NOTES
 =======================================================================
 
