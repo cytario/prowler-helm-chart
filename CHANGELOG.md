@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.0](https://github.com/cytario/prowler-helm-chart/compare/v1.0.0...v1.1.0) (2026-01-29)
+
+### Features
+
+* add Neo4j (DozerDB) support for Attack Paths feature ([119121b](https://github.com/cytario/prowler-helm-chart/commit/119121ba4dfa4442c091d52ec29e5234a6034b22))
+* auto-generate Neo4j password if not provided ([5753d46](https://github.com/cytario/prowler-helm-chart/commit/5753d46e2506f8ce1073f43dc6028cd38d37347c))
+
+### Documentation
+
+* add Neo4j documentation to all markdown files ([f045b63](https://github.com/cytario/prowler-helm-chart/commit/f045b634494b49bbdbf99ae0465b176e4c173a92))
+
 ## 1.0.0 (2025-11-24)
 
 ### Features
