@@ -623,11 +623,11 @@ neo4j:
     pullPolicy: IfNotPresent
 
   # Authentication configuration
-  # IMPORTANT: Password must be set by user for security
   auth:
     username: neo4j
-    # Password is REQUIRED - set via --set neo4j.auth.password=yourpassword
-    # or in your values override file
+    # Password is auto-generated if not provided
+    # To set your own: --set neo4j.auth.password=yourpassword
+    # Auto-generated password is preserved across upgrades
     password: ""
 
   # Neo4j/DozerDB configuration

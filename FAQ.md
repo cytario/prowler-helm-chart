@@ -700,7 +700,7 @@ Neo4j (DozerDB) is a graph database used by Prowler's **Attack Paths** feature (
 
 ### How do I set the Neo4j password?
 
-Neo4j password is **required** and must be set during installation:
+Neo4j password is **auto-generated** if not provided. To set your own:
 
 ```bash
 helm install prowler charts/prowler \
@@ -708,7 +708,7 @@ helm install prowler charts/prowler \
   -n prowler
 ```
 
-There is no default password for security reasons.
+The auto-generated password is preserved across upgrades using Helm's `lookup` function.
 
 ### Can I use an external Neo4j instance?
 

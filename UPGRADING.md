@@ -181,19 +181,19 @@ helm upgrade prowler prowler/prowler \
 
 ### Neo4j Addition (Current Version)
 
-**New Requirement:** Neo4j is now required for Prowler's Attack Paths feature.
+**New Feature:** Neo4j (DozerDB) is now included for Prowler's Attack Paths feature.
 
-**Breaking Changes:**
-- Neo4j password is now **required** when `neo4j.enabled=true` (default)
-- Installation will fail without setting `neo4j.auth.password`
+**What's New:**
+- Neo4j is enabled by default (`neo4j.enabled=true`)
+- Password is auto-generated if not provided
+- Persistence is enabled by default
 
 **Migration Steps:**
-1. Set Neo4j password during upgrade:
+1. Upgrade normally - Neo4j will be deployed automatically:
    ```bash
    helm upgrade prowler charts/prowler \
      -n prowler \
-     --reuse-values \
-     --set neo4j.auth.password=your-secure-password
+     --reuse-values
    ```
 
 2. Verify Neo4j is running:

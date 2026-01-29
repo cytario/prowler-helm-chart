@@ -868,21 +868,7 @@ kubectl describe pod -n prowler -l app.kubernetes.io/name=prowler-neo4j
 
 **Common Causes:**
 
-#### 1. Missing Password
-
-**Error:**
-```
-Error: neo4j.auth.password is required when neo4j.enabled is true
-```
-
-**Solution:**
-```bash
-helm upgrade prowler charts/prowler \
-  --set neo4j.auth.password=your-secure-password \
-  -n prowler
-```
-
-#### 2. Memory Issues
+#### 1. Memory Issues
 
 **Logs show:**
 ```

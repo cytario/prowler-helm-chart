@@ -49,12 +49,7 @@ https://github.com/promptlylabs/prowler-helm-chart/tree/main/examples
 =======================================================================
 
 Neo4j (DozerDB) is deployed for Prowler's Attack Paths feature.
-
-IMPORTANT: Neo4j requires a password to be set!
-If you haven't set it, redeploy with:
-
-  helm upgrade {{ .Release.Name }} prowler/prowler \
-    --set neo4j.auth.password=YOUR_SECURE_PASSWORD
+Password is auto-generated and stored in secret {{ include "prowler.neo4j.fullname" . }}.
 
 Check Neo4j status:
   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "prowler.neo4j.fullname" . }}

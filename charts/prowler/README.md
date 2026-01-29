@@ -39,8 +39,7 @@ Install the chart with default settings:
 ```bash
 helm repo add prowler-app https://promptlylabs.github.io/prowler-helm-chart
 helm repo update
-helm install prowler prowler-app/prowler \
-  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD
+helm install prowler prowler-app/prowler
 ```
 
 ### Prerequisites
@@ -50,7 +49,6 @@ Prowler requires:
 - Helm 3.0+
 - PostgreSQL database
 - Valkey/Redis instance
-- Neo4j password (required for Attack Paths feature)
 
 ### Database Configuration
 

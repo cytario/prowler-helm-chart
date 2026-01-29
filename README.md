@@ -117,8 +117,7 @@ helm repo update
 # Install with default settings
 helm install prowler prowler-app/prowler \
   --create-namespace \
-  --namespace prowler \
-  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD
+  --namespace prowler
 
 # Wait for pods to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=prowler -n prowler --timeout=5m
@@ -179,8 +178,7 @@ kubectl create secret generic prowler-valkey-secret -n prowler \
 # 3. Install with production values
 helm install prowler prowler-app/prowler \
   -n prowler \
-  -f examples/values-production.yaml \
-  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD
+  -f examples/values-production.yaml
 ```
 
 See [examples/](examples/) directory for complete production configurations.
