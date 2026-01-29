@@ -13,6 +13,7 @@ This guide covers common issues you may encounter when deploying and operating t
 - [Networking and Ingress Issues](#networking-and-ingress-issues)
 - [Performance Problems](#performance-problems)
 - [Upgrade Issues](#upgrade-issues)
+- [Neo4j Issues](#neo4j-issues)
 - [Getting Help](#getting-help)
 
 ---
@@ -841,6 +842,132 @@ kubectl rollout restart deployment/prowler-worker-beat -n prowler
 
 # Verify rollout
 kubectl rollout status deployment/prowler-api -n prowler
+```
+
+---
+
+## Neo4j Issues
+
+### Neo4j Pod Not Starting
+
+**Symptoms:**
+```bash
+$ kubectl get pods -n prowler
+NAME                           READY   STATUS             RESTARTS   AGE
+prowler-neo4j-xxxxx-xxxxx      0/1     CrashLoopBackOff   5          5m
+```
+
+**Diagnosis:**
+```bash
+# Check pod logs
+kubectl logs -n prowler -l app.kubernetes.io/name=prowler-neo4j --tail=50
+
+# Check pod events
+kubectl describe pod -n prowler -l app.kubernetes.io/name=prowler-neo4j
+```
+
+**Common Causes:**
+
+#### 1. Missing Password
+
+**Error:**
+```
+Error: neo4j.auth.password is required when neo4j.enabled is true
+```
+
+**Solution:**
+```bash
+helm upgrade prowler charts/prowler \
+  --set neo4j.auth.password=your-secure-password \
+  -n prowler
+```
+
+#### 2. Memory Issues
+
+**Logs show:**
+```
+Java heap space error
+OutOfMemoryError
+```
+
+**Solution:**
+```bash
+# Increase Neo4j memory limits
+helm upgrade prowler charts/prowler \
+  --set neo4j.resources.limits.memory=8Gi \
+  --set neo4j.config.heapMaxSize=4G \
+  --set neo4j.config.pagecacheSize=2G \
+  -n prowler
+```
+
+---
+
+### API/Worker Cannot Connect to Neo4j
+
+**Symptoms:**
+API or Worker logs show Neo4j connection errors.
+
+**Diagnosis:**
+```bash
+# Check Neo4j service
+kubectl get svc prowler-neo4j -n prowler
+
+# Test connectivity from API pod
+kubectl exec -n prowler -it deployment/prowler-api -- \
+  nc -zv prowler-neo4j 7687
+```
+
+**Solution:**
+```bash
+# Verify Neo4j is running
+kubectl get pods -n prowler -l app.kubernetes.io/name=prowler-neo4j
+
+# Check Neo4j logs
+kubectl logs -n prowler -l app.kubernetes.io/name=prowler-neo4j --tail=50
+
+# Restart Neo4j if needed
+kubectl rollout restart deployment/prowler-neo4j -n prowler
+```
+
+---
+
+### Neo4j Data Loss After Restart
+
+**Cause:** Persistence is disabled (using emptyDir).
+
+**Solution:**
+```bash
+# Enable persistent storage
+helm upgrade prowler charts/prowler \
+  --set neo4j.persistence.enabled=true \
+  --set neo4j.persistence.size=20Gi \
+  -n prowler
+```
+
+---
+
+### Attack Paths Feature Not Working
+
+**Symptoms:**
+Attack Paths feature shows errors or no data.
+
+**Diagnosis:**
+```bash
+# Check if Neo4j is enabled
+helm get values prowler -n prowler | grep neo4j
+
+# Check Neo4j connectivity
+kubectl exec -n prowler -it deployment/prowler-api -- \
+  env | grep NEO4J
+```
+
+**Solution:**
+Ensure Neo4j is enabled and properly configured:
+```bash
+helm upgrade prowler charts/prowler \
+  --set neo4j.enabled=true \
+  --set neo4j.auth.password=your-password \
+  -n prowler
 ```
 
 ---

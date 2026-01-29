@@ -49,6 +49,7 @@ vi examples/values-production.yaml
 # 3. Install with production values
 helm install prowler charts/prowler \
   -f examples/values-production.yaml \
+  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD \
   -n prowler
 ```
 
@@ -174,9 +175,10 @@ helm install prowler charts/prowler \
 ## General Usage Tips
 
 ### 1. Start with Defaults
-For development or testing, the default `values.yaml` works out of the box:
+For development or testing, the default `values.yaml` works with Neo4j password:
 ```bash
-helm install prowler charts/prowler -n prowler --create-namespace
+helm install prowler charts/prowler -n prowler --create-namespace \
+  --set neo4j.auth.password=your-password
 ```
 
 ### 2. Combine Multiple Files

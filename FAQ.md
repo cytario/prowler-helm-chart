@@ -12,6 +12,7 @@ Common questions about deploying and using the Prowler Helm chart.
 - [Scaling & Performance](#scaling--performance)
 - [Cloud Provider Specific](#cloud-provider-specific)
 - [Troubleshooting](#troubleshooting)
+- [Neo4j (Attack Paths)](#neo4j-attack-paths)
 
 ---
 
@@ -683,6 +684,76 @@ api:
 Then check logs:
 ```bash
 kubectl logs -n prowler -l app.kubernetes.io/component=api -f
+```
+
+---
+
+## Neo4j (Attack Paths)
+
+### What is Neo4j used for in Prowler?
+
+Neo4j (DozerDB) is a graph database used by Prowler's **Attack Paths** feature (introduced in Prowler 5.17+). It stores relationships between cloud resources to identify potential attack paths and security risks.
+
+### Is Neo4j required?
+
+**Yes**, for Prowler 5.17+. Neo4j is enabled by default in this chart. If you disable it (`neo4j.enabled=false`), the Attack Paths feature will not work and API/Worker pods may crash.
+
+### How do I set the Neo4j password?
+
+Neo4j password is **required** and must be set during installation:
+
+```bash
+helm install prowler charts/prowler \
+  --set neo4j.auth.password=your-secure-password \
+  -n prowler
+```
+
+There is no default password for security reasons.
+
+### Can I use an external Neo4j instance?
+
+Currently, the chart only supports the built-in Neo4j (DozerDB) deployment. External Neo4j support may be added in future versions.
+
+### How do I enable Neo4j persistence?
+
+Persistence is **enabled by default**. To explicitly configure it:
+
+```yaml
+neo4j:
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: "your-storage-class"
+```
+
+### How do I access Neo4j Browser for debugging?
+
+```bash
+kubectl port-forward -n prowler svc/prowler-neo4j 7474:7474 7687:7687
+```
+
+Then open http://localhost:7474 and login with:
+- Username: `neo4j`
+- Password: (the password you set during installation)
+
+### How much memory does Neo4j need?
+
+Default configuration:
+- Requests: 2Gi memory, 500m CPU
+- Limits: 4Gi memory, 2000m CPU
+- Heap: 1G initial, 1G max
+- Page cache: 1G
+
+For large deployments (many cloud accounts), increase these values:
+
+```yaml
+neo4j:
+  resources:
+    limits:
+      memory: 8Gi
+  config:
+    heapMaxSize: "4G"
+    pagecacheSize: "2G"
 ```
 
 ---

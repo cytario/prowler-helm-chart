@@ -26,6 +26,7 @@ The app leverages the following supporting infrastructure:
 - **PostgreSQL**: Used for persistent storage of scan results.
 - **Celery Workers**: Facilitate asynchronous execution of Prowler scans.
 - **Valkey**: An in-memory database serving as a message broker for the Celery workers.
+- **Neo4j (DozerDB)**: Graph database for Attack Paths feature (Prowler 5.17+).
 
 ![prowler architecture](https://promptlylabs.github.io/prowler-helm-chart/docs/images/architecture.png)
 
@@ -38,7 +39,8 @@ Install the chart with default settings:
 ```bash
 helm repo add prowler-app https://promptlylabs.github.io/prowler-helm-chart
 helm repo update
-helm install prowler prowler-app/prowler
+helm install prowler prowler-app/prowler \
+  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD
 ```
 
 ### Prerequisites
@@ -48,6 +50,7 @@ Prowler requires:
 - Helm 3.0+
 - PostgreSQL database
 - Valkey/Redis instance
+- Neo4j password (required for Attack Paths feature)
 
 ### Database Configuration
 

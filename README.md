@@ -101,6 +101,7 @@ The app leverages the following supporting infrastructure:
 - **PostgreSQL**: Used for persistent storage of scan results.
 - **Celery Workers**: Facilitate asynchronous execution of Prowler scans.
 - **Valkey**: An in-memory database serving as a message broker for the Celery workers.
+- **Neo4j (DozerDB)**: Graph database for Attack Paths feature (Prowler 5.17+).
 
 ![prowler architecture](docs/images/architecture.png)
 
@@ -116,7 +117,8 @@ helm repo update
 # Install with default settings
 helm install prowler prowler-app/prowler \
   --create-namespace \
-  --namespace prowler
+  --namespace prowler \
+  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD
 
 # Wait for pods to be ready
 kubectl wait --for=condition=ready pod -l app.kubernetes.io/instance=prowler -n prowler --timeout=5m
@@ -177,7 +179,8 @@ kubectl create secret generic prowler-valkey-secret -n prowler \
 # 3. Install with production values
 helm install prowler prowler-app/prowler \
   -n prowler \
-  -f examples/values-production.yaml
+  -f examples/values-production.yaml \
+  --set neo4j.auth.password=YOUR_NEO4J_PASSWORD
 ```
 
 See [examples/](examples/) directory for complete production configurations.

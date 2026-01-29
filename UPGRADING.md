@@ -179,6 +179,39 @@ helm upgrade prowler prowler/prowler \
 
 ## Version-Specific Upgrade Notes
 
+### Neo4j Addition (Current Version)
+
+**New Requirement:** Neo4j is now required for Prowler's Attack Paths feature.
+
+**Breaking Changes:**
+- Neo4j password is now **required** when `neo4j.enabled=true` (default)
+- Installation will fail without setting `neo4j.auth.password`
+
+**Migration Steps:**
+1. Set Neo4j password during upgrade:
+   ```bash
+   helm upgrade prowler charts/prowler \
+     -n prowler \
+     --reuse-values \
+     --set neo4j.auth.password=your-secure-password
+   ```
+
+2. Verify Neo4j is running:
+   ```bash
+   kubectl get pods -n prowler -l app.kubernetes.io/name=prowler-neo4j
+   ```
+
+**Disabling Neo4j (not recommended):**
+If you don't need Attack Paths feature:
+```bash
+helm upgrade prowler charts/prowler \
+  -n prowler \
+  --reuse-values \
+  --set neo4j.enabled=false
+```
+
+---
+
 ### Upgrading to v1.0.0 (Future Release)
 
 **Breaking Changes:**
