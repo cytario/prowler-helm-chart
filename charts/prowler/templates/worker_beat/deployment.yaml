@@ -127,6 +127,23 @@ spec:
                   name: prowler-valkey-secret
                   key: VALKEY_PASSWORD
                   optional: true
+            {{- if .Values.neo4j.enabled }}
+            # Neo4j connection for Attack Paths feature
+            - name: NEO4J_HOST
+              value: {{ include "prowler.neo4j.fullname" . | quote }}
+            - name: NEO4J_PORT
+              value: {{ .Values.neo4j.service.port | quote }}
+            - name: NEO4J_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prowler.neo4j.fullname" . }}
+                  key: username
+            - name: NEO4J_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prowler.neo4j.fullname" . }}
+                  key: password
+            {{- end }}
           {{- with .Values.worker_beat.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}

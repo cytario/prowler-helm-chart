@@ -1,0 +1,131 @@
+{{- if .Values.neo4j.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "prowler.neo4j.fullname" . }}
+  labels:
+    {{- include "prowler.neo4j.labels" . | nindent 4 }}
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "prowler.neo4j.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # Pod Security Standards
+        seccomp.security.alpha.kubernetes.io/pod: runtime/default
+        {{- with .Values.neo4j.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "prowler.neo4j.labels" . | nindent 8 }}
+        {{- include "prowler.neo4j.selectorLabels" . | nindent 8 }}
+        # Pod Security Standards compliance label
+        pod-security.kubernetes.io/enforce: restricted
+        {{- with .Values.neo4j.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.neo4j.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.neo4j.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: neo4j
+          {{- with .Values.neo4j.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }}"
+          imagePullPolicy: {{ .Values.neo4j.image.pullPolicy }}
+          ports:
+            - name: bolt
+              containerPort: 7687
+              protocol: TCP
+            - name: http
+              containerPort: 7474
+              protocol: TCP
+          env:
+            # Authentication
+            - name: NEO4J_AUTH
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "prowler.neo4j.fullname" . }}
+                  key: NEO4J_AUTH
+            # APOC plugin configuration
+            - name: NEO4J_PLUGINS
+              value: '["apoc"]'
+            - name: NEO4J_dbms_security_procedures_unrestricted
+              value: "apoc.*"
+            - name: NEO4J_dbms_security_procedures_allowlist
+              value: "apoc.*"
+            # Database configuration
+            - name: NEO4J_initial_dbms_default__database
+              value: "neo4j"
+            - name: NEO4J_dbms_max__databases
+              value: {{ .Values.neo4j.config.maxDatabases | quote }}
+            # Memory configuration
+            - name: NEO4J_dbms_memory_pagecache_size
+              value: {{ .Values.neo4j.config.pagecacheSize | quote }}
+            - name: NEO4J_dbms_memory_heap_initial__size
+              value: {{ .Values.neo4j.config.heapInitialSize | quote }}
+            - name: NEO4J_dbms_memory_heap_max__size
+              value: {{ .Values.neo4j.config.heapMaxSize | quote }}
+            # Accept license agreement (required for Neo4j 5+)
+            - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
+              value: "yes"
+          startupProbe:
+            httpGet:
+              path: /
+              port: http
+            failureThreshold: 30
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 20
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            periodSeconds: 10
+            failureThreshold: 3
+          {{- with .Values.neo4j.resources }}
+          resources:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+            - name: logs
+              mountPath: /logs
+      volumes:
+        - name: data
+          {{- if .Values.neo4j.persistence.enabled }}
+          persistentVolumeClaim:
+            claimName: {{ include "prowler.neo4j.fullname" . }}
+          {{- else }}
+          emptyDir: {}
+          {{- end }}
+        - name: logs
+          emptyDir: {}
+      {{- with .Values.neo4j.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.neo4j.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.neo4j.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+{{- end }}

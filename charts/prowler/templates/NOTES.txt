@@ -43,6 +43,39 @@ kubectl create secret generic prowler-valkey-secret -n {{ .Release.Namespace }} 
 For detailed setup instructions, see:
 https://github.com/promptlylabs/prowler-helm-chart/tree/main/examples
 
+{{- if .Values.neo4j.enabled }}
+=======================================================================
+  NEO4J (DOZERDB) - ATTACK PATHS FEATURE
+=======================================================================
+
+Neo4j (DozerDB) is deployed for Prowler's Attack Paths feature.
+
+IMPORTANT: Neo4j requires a password to be set!
+If you haven't set it, redeploy with:
+
+  helm upgrade {{ .Release.Name }} prowler/prowler \
+    --set neo4j.auth.password=YOUR_SECURE_PASSWORD
+
+Check Neo4j status:
+  kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "prowler.neo4j.fullname" . }}
+
+View Neo4j logs:
+  kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/name={{ include "prowler.neo4j.fullname" . }} --tail=50 -f
+
+Access Neo4j Browser (for debugging):
+  kubectl port-forward -n {{ .Release.Namespace }} svc/{{ include "prowler.neo4j.fullname" . }} 7474:7474 7687:7687
+  Then open: http://localhost:7474
+
+{{- if .Values.neo4j.persistence.enabled }}
+✓ Neo4j persistence is enabled (data will survive pod restarts)
+{{- else }}
+⚠️  WARNING: Neo4j persistence is DISABLED!
+   Data will be lost when the pod restarts.
+   To enable persistence:
+   --set neo4j.persistence.enabled=true
+{{- end }}
+{{- end }}
+
 =======================================================================
   IMPORTANT SECURITY NOTES
 =======================================================================
@@ -119,6 +152,11 @@ To access the API directly:
 ✓ Celery Beat:         {{ .Values.worker_beat.replicaCount }} replica(s)
 ✓ PostgreSQL:          Using external instance
 ✓ Valkey:              Using external instance
+{{- if .Values.neo4j.enabled }}
+✓ Neo4j (DozerDB):     Deployed ({{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }})
+{{- else }}
+✗ Neo4j:               Disabled (Attack Paths feature unavailable)
+{{- end }}
 
 =======================================================================
   MONITORING THE DEPLOYMENT

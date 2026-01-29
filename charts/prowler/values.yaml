@@ -608,3 +608,100 @@ worker_beat:
   tolerations: []
 
   affinity: {}
+
+# Neo4j (DozerDB) configuration for Attack Paths feature (Prowler 5.17+)
+# DozerDB is a Neo4j-compatible database optimized for Prowler
+neo4j:
+  # Enable/disable Neo4j deployment
+  # Required for Prowler 5.17+ Attack Paths feature
+  enabled: true
+
+  # Container image configuration
+  image:
+    repository: graphstack/dozerdb
+    tag: "5.26.3.0"
+    pullPolicy: IfNotPresent
+
+  # Authentication configuration
+  # IMPORTANT: Password must be set by user for security
+  auth:
+    username: neo4j
+    # Password is REQUIRED - set via --set neo4j.auth.password=yourpassword
+    # or in your values override file
+    password: ""
+
+  # Neo4j/DozerDB configuration
+  config:
+    # Maximum number of databases (for multi-tenant support)
+    maxDatabases: 1000
+    # Page cache size for performance
+    pagecacheSize: "1G"
+    # Initial JVM heap size
+    heapInitialSize: "1G"
+    # Maximum JVM heap size
+    heapMaxSize: "1G"
+
+  # Service configuration
+  service:
+    type: ClusterIP
+    # Bolt protocol port (used by Prowler)
+    port: 7687
+    # HTTP port (for Neo4j Browser, optional)
+    httpPort: 7474
+
+  # Persistence configuration
+  persistence:
+    # Enable persistent storage for Neo4j data
+    # Enabled by default for data durability
+    enabled: true
+    # Storage size
+    size: 10Gi
+    # Storage class (leave empty for default)
+    storageClass: ""
+    # Access mode
+    accessMode: ReadWriteOnce
+
+  # Resource requests and limits
+  resources:
+    requests:
+      memory: "2Gi"
+      cpu: "500m"
+    limits:
+      memory: "4Gi"
+      cpu: "2000m"
+
+  # Pod security context
+  podSecurityContext:
+    runAsNonRoot: true
+    runAsUser: 7474
+    fsGroup: 7474
+    seccompProfile:
+      type: RuntimeDefault
+
+  # Container security context
+  securityContext:
+    allowPrivilegeEscalation: false
+    readOnlyRootFilesystem: false  # Neo4j needs write access to data directory
+    runAsNonRoot: true
+    runAsUser: 7474
+    capabilities:
+      drop:
+        - ALL
+
+  # This is for the secrets for pulling an image from a private repository
+  imagePullSecrets: []
+
+  # Pod annotations
+  podAnnotations: {}
+
+  # Pod labels
+  podLabels: {}
+
+  # Node selector
+  nodeSelector: {}
+
+  # Tolerations
+  tolerations: []
+
+  # Affinity rules
+  affinity: {}
