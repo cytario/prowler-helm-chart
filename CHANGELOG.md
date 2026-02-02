@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.2](https://github.com/cytario/prowler-helm-chart/compare/v1.1.1...v1.1.2) (2026-02-02)
+
+### Documentation
+
+* remove Artifact Hub links, add AWS EFS troubleshooting ([b29544a](https://github.com/cytario/prowler-helm-chart/commit/b29544a3ba3032cf30227aca595c171b7f6114f5))
+
 ## [1.1.1](https://github.com/cytario/prowler-helm-chart/compare/v1.1.0...v1.1.1) (2026-02-02)
 
 ### Documentation
