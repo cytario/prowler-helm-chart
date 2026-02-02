@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.1](https://github.com/cytario/prowler-helm-chart/compare/v1.1.0...v1.1.1) (2026-02-02)
+
+### Documentation
+
+* update URLs to cytario, add OCI instructions, bump to v1.1.0 ([7502d5e](https://github.com/cytario/prowler-helm-chart/commit/7502d5e7e8db93963123ae62890c33c8eeb30de1))
+
 ## [1.1.0](https://github.com/cytario/prowler-helm-chart/compare/v1.0.0...v1.1.0) (2026-01-29)
 
 ### Features
