@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.1.3](https://github.com/cytario/prowler-helm-chart/compare/v1.1.2...v1.1.3) (2026-02-02)
+
+### Bug Fixes
+
+* **ci:** stop overwriting appVersion, auto-update README badges ([02ff584](https://github.com/cytario/prowler-helm-chart/commit/02ff584a893a2591aa52bdc55a7791f5ee07147d))
+
 ## [1.1.2](https://github.com/cytario/prowler-helm-chart/compare/v1.1.1...v1.1.2) (2026-02-02)
 
 ### Documentation
