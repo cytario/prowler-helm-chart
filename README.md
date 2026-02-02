@@ -6,7 +6,7 @@ Images should use relative URLs.
 # Prowler Helm Chart
 
 ![Version: 1.1.3](https://img.shields.io/badge/Version-1.1.4-informational?style=flat-square)
-![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-1.1.4-informational?style=flat-square)
+![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-5.17.1-informational?style=flat-square)
 
 **Deploy Prowler's web application on Kubernetes with this production-ready Helm chart.**
 
