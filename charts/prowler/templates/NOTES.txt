@@ -41,7 +41,7 @@ kubectl create secret generic prowler-valkey-secret -n {{ .Release.Namespace }} 
   --from-literal=VALKEY_PASSWORD=your-password
 
 For detailed setup instructions, see:
-https://github.com/promptlylabs/prowler-helm-chart/tree/main/examples
+https://github.com/cytario/prowler-helm-chart/tree/main/examples
 
 {{- if .Values.neo4j.enabled }}
 =======================================================================
@@ -179,6 +179,6 @@ View Worker logs:
 4. Review findings and compliance reports
 
 For documentation, visit: https://prowler.com/
-For issues, visit: https://github.com/promptlylabs/prowler-helm-chart/issues
+For issues, visit: https://github.com/cytario/prowler-helm-chart/issues
 
 Happy scanning! 🔒

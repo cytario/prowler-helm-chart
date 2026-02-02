@@ -71,5 +71,5 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## Previous Releases
 
 For information about releases prior to this changelog, please see:
-- [GitHub Releases](https://github.com/promptlylabs/prowler-helm-chart/releases)
+- [GitHub Releases](https://github.com/cytario/prowler-helm-chart/releases)
 - [Chart.yaml annotations](charts/prowler/Chart.yaml) for recent changes

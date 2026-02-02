@@ -383,7 +383,7 @@ Before deploying to production:
 
 If you discover a security vulnerability in the Prowler Helm Chart, please report it to:
 
-- **Chart Issues**: [GitHub Issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
+- **Chart Issues**: [GitHub Issues](https://github.com/cytario/prowler-helm-chart/issues)
 - **Prowler Application**: [Prowler Security Policy](https://github.com/prowler-cloud/prowler/security/policy)
 
 Please do not disclose security vulnerabilities publicly until they have been addressed.

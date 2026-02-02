@@ -64,7 +64,7 @@ We welcome pull requests for:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/promptlylabs/prowler-helm-chart.git
+   git clone https://github.com/cytario/prowler-helm-chart.git
    cd prowler-helm-chart
    ```
 
@@ -375,8 +375,8 @@ See [PIPELINE.md](../PIPELINE.md) for detailed CI/CD documentation.
 ## Getting Help
 
 - **Documentation:** Check [README.md](../README.md) and [docs/](../docs/)
-- **Issues:** Search existing [GitHub Issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
-- **Discussions:** Use [GitHub Discussions](https://github.com/promptlylabs/prowler-helm-chart/discussions)
+- **Issues:** Search existing [GitHub Issues](https://github.com/cytario/prowler-helm-chart/issues)
+- **Discussions:** Use [GitHub Discussions](https://github.com/cytario/prowler-helm-chart/discussions)
 - **Security:** For security issues, see [SECURITY.md](../SECURITY.md)
 
 ## Recognition

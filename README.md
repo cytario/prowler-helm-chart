@@ -5,8 +5,8 @@ Images should use relative URLs.
 
 # Prowler Helm Chart
 
-![Version: 0.0.2](https://img.shields.io/badge/Version-1.1.0-informational?style=flat-square)
-![AppVersion: 5.5.1](https://img.shields.io/badge/AppVersion-1.1.0-informational?style=flat-square)
+![Version: 1.1.0](https://img.shields.io/badge/Version-1.1.0-informational?style=flat-square)
+![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-5.17.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/prowler-app)](https://artifacthub.io/packages/helm/prowler-app/prowler)
 
 **Deploy Prowler's web application on Kubernetes with this production-ready Helm chart.**
@@ -110,12 +110,9 @@ The app leverages the following supporting infrastructure:
 Get Prowler running in 2 minutes:
 
 ```bash
-# Add Helm repository
-helm repo add prowler-app https://promptlylabs.github.io/prowler-helm-chart
-helm repo update
-
-# Install with default settings
-helm install prowler prowler-app/prowler \
+# Install from OCI registry (recommended)
+helm install prowler oci://ghcr.io/cytario/prowler \
+  --version 1.1.0 \
   --create-namespace \
   --namespace prowler
 
@@ -137,8 +134,19 @@ Then open http://localhost:3000 and login with the credentials you just created.
 ### Add Helm Repository
 
 ```bash
-helm repo add prowler-app https://promptlylabs.github.io/prowler-helm-chart
+helm repo add prowler-app https://cytario.github.io/prowler-helm-chart
 helm repo update
+```
+
+### OCI Registry (Recommended)
+
+Install directly from OCI registry (no repo add required):
+
+```bash
+helm install prowler oci://ghcr.io/cytario/prowler \
+  --version 1.1.0 \
+  --create-namespace \
+  --namespace prowler
 ```
 
 ### Basic Installation
@@ -592,14 +600,14 @@ See [CONTRIBUTING.md](.github/CONTRIBUTING.md) for detailed contribution guideli
 ### Community Support
 
 - **📖 Documentation** - Start with [FAQ.md](FAQ.md) and [docs/troubleshooting.md](docs/troubleshooting.md)
-- **🐛 Bug Reports** - [GitHub Issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
-- **💬 Questions** - [GitHub Discussions](https://github.com/promptlylabs/prowler-helm-chart/discussions)
+- **🐛 Bug Reports** - [GitHub Issues](https://github.com/cytario/prowler-helm-chart/issues)
+- **💬 Questions** - [GitHub Discussions](https://github.com/cytario/prowler-helm-chart/discussions)
 - **📧 Security Issues** - See [SECURITY.md](SECURITY.md)
 
 ### Before Opening an Issue
 
 1. Check [FAQ.md](FAQ.md) for common questions
-2. Search [existing issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
+2. Search [existing issues](https://github.com/cytario/prowler-helm-chart/issues)
 3. Review [troubleshooting guide](docs/troubleshooting.md)
 4. Collect debug information (logs, pod status, events)
 
@@ -615,11 +623,11 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 
 - [Prowler](https://github.com/prowler-cloud/prowler) - The amazing cloud security tool this chart deploys
 - [Bitnami Charts](https://github.com/bitnami/charts) - PostgreSQL and Valkey dependencies
-- All [contributors](https://github.com/promptlylabs/prowler-helm-chart/graphs/contributors) who have helped improve this project
+- All [contributors](https://github.com/cytario/prowler-helm-chart/graphs/contributors) who have helped improve this project
 
 ## 🔗 Links
 
-- **Chart Repository:** [prowler-helm-chart](https://github.com/promptlylabs/prowler-helm-chart)
+- **Chart Repository:** [prowler-helm-chart](https://github.com/cytario/prowler-helm-chart)
 - **Prowler:** [prowler-cloud/prowler](https://github.com/prowler-cloud/prowler)
 - **Documentation:** [docs.prowler.com](https://docs.prowler.com/)
 - **Artifact Hub:** [prowler-app/prowler](https://artifacthub.io/packages/helm/prowler-app/prowler)

@@ -65,7 +65,7 @@ Before upgrading, ensure you've completed these steps:
 helm show readme prowler/prowler --version X.Y.Z
 
 # Review CHANGELOG
-curl -s https://raw.githubusercontent.com/promptlylabs/prowler-helm-chart/main/CHANGELOG.md
+curl -s https://raw.githubusercontent.com/cytario/prowler-helm-chart/main/CHANGELOG.md
 ```
 
 ### 2. Backup Current State
@@ -590,8 +590,8 @@ After completing an upgrade:
 If you encounter issues during upgrade:
 
 1. **Check Troubleshooting Guide:** [docs/troubleshooting.md](docs/troubleshooting.md)
-2. **Search Issues:** [GitHub Issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
-3. **Ask Community:** [GitHub Discussions](https://github.com/promptlylabs/prowler-helm-chart/discussions)
+2. **Search Issues:** [GitHub Issues](https://github.com/cytario/prowler-helm-chart/issues)
+3. **Ask Community:** [GitHub Discussions](https://github.com/cytario/prowler-helm-chart/discussions)
 4. **Review Logs:** Collect debug information (see troubleshooting guide)
 
 When reporting upgrade issues, include:

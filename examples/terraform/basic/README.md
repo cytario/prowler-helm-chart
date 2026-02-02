@@ -216,5 +216,5 @@ kubectl logs -n prowler -l app.kubernetes.io/name=postgresql
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/prowler-cloud/prowler-helm-chart/issues
+- GitHub Issues: https://github.com/cytario/prowler-helm-chart/issues
 - Documentation: https://docs.prowler.com

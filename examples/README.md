@@ -366,8 +366,8 @@ api:
 
 - **Documentation:** [../README.md](../README.md)
 - **Contributing:** [../.github/CONTRIBUTING.md](../.github/CONTRIBUTING.md)
-- **Issues:** [GitHub Issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
-- **Discussions:** [GitHub Discussions](https://github.com/promptlylabs/prowler-helm-chart/discussions)
+- **Issues:** [GitHub Issues](https://github.com/cytario/prowler-helm-chart/issues)
+- **Discussions:** [GitHub Discussions](https://github.com/cytario/prowler-helm-chart/discussions)
 
 ## Additional Resources
 

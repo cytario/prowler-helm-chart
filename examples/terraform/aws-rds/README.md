@@ -583,6 +583,6 @@ terraform destroy
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/prowler-cloud/prowler-helm-chart/issues
+- GitHub Issues: https://github.com/cytario/prowler-helm-chart/issues
 - AWS RDS Documentation: https://docs.aws.amazon.com/rds/
 - Prowler Documentation: https://docs.prowler.com

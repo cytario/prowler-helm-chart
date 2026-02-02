@@ -503,7 +503,7 @@ terraform apply
 ### Prowler
 - [Prowler Documentation](https://docs.prowler.com)
 - [Prowler GitHub](https://github.com/prowler-cloud/prowler)
-- [Helm Chart Repository](https://github.com/prowler-cloud/prowler-helm-chart)
+- [Helm Chart Repository](https://github.com/cytario/prowler-helm-chart)
 
 ## 🤝 Contributing
 
@@ -520,8 +520,8 @@ This project is licensed under the same license as the Prowler Helm Chart.
 
 ## 💬 Support
 
-- **GitHub Issues**: [prowler-helm-chart/issues](https://github.com/prowler-cloud/prowler-helm-chart/issues)
-- **Discussions**: [prowler-helm-chart/discussions](https://github.com/prowler-cloud/prowler-helm-chart/discussions)
+- **GitHub Issues**: [prowler-helm-chart/issues](https://github.com/cytario/prowler-helm-chart/issues)
+- **Discussions**: [prowler-helm-chart/discussions](https://github.com/cytario/prowler-helm-chart/discussions)
 - **Documentation**: [docs.prowler.com](https://docs.prowler.com)
 
 ---

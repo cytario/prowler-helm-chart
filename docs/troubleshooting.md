@@ -995,8 +995,8 @@ kubectl top nodes
 
 ### Community Support
 
-- **GitHub Issues:** [prowler-helm-chart/issues](https://github.com/promptlylabs/prowler-helm-chart/issues)
-- **GitHub Discussions:** [prowler-helm-chart/discussions](https://github.com/promptlylabs/prowler-helm-chart/discussions)
+- **GitHub Issues:** [prowler-helm-chart/issues](https://github.com/cytario/prowler-helm-chart/issues)
+- **GitHub Discussions:** [prowler-helm-chart/discussions](https://github.com/cytario/prowler-helm-chart/discussions)
 - **Prowler Documentation:** [docs.prowler.com](https://docs.prowler.com/)
 
 ### Commercial Support

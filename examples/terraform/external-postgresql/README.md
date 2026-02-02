@@ -443,5 +443,5 @@ Or increase PostgreSQL max connections (requires custom values).
 ## Support
 
 For issues and questions:
-- GitHub Issues: https://github.com/prowler-cloud/prowler-helm-chart/issues
+- GitHub Issues: https://github.com/cytario/prowler-helm-chart/issues
 - Documentation: https://docs.prowler.com

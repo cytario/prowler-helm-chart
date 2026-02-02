@@ -5,8 +5,8 @@ Images should use absolute URLs.
 
 # Prowler Helm Chart
 
-![Version: 0.1.0](https://img.shields.io/badge/Version-1.1.0-informational?style=flat-square)
-![AppVersion: 5.5.1](https://img.shields.io/badge/AppVersion-1.1.0-informational?style=flat-square)
+![Version: 1.1.0](https://img.shields.io/badge/Version-1.1.0-informational?style=flat-square)
+![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-5.17.1-informational?style=flat-square)
 [![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/prowler-app)](https://artifacthub.io/packages/helm/prowler-app/prowler)
 
 Prowler is an Open Cloud Security tool for AWS, Azure, GCP and Kubernetes. It helps for continuous monitoring, security assessments and audits, incident response, compliance, hardening and forensics readiness. Includes CIS, NIST 800, NIST CSF, CISA, FedRAMP, PCI-DSS, GDPR, HIPAA, FFIEC, SOC2, GXP, Well-Architected Security, ENS and more.
@@ -28,7 +28,7 @@ The app leverages the following supporting infrastructure:
 - **Valkey**: An in-memory database serving as a message broker for the Celery workers.
 - **Neo4j (DozerDB)**: Graph database for Attack Paths feature (Prowler 5.17+).
 
-![prowler architecture](https://promptlylabs.github.io/prowler-helm-chart/docs/images/architecture.png)
+![prowler architecture](https://cytario.github.io/prowler-helm-chart/docs/images/architecture.png)
 
 ## Setup
 
@@ -37,7 +37,11 @@ The app leverages the following supporting infrastructure:
 Install the chart with default settings:
 
 ```bash
-helm repo add prowler-app https://promptlylabs.github.io/prowler-helm-chart
+# Using OCI registry (recommended)
+helm install prowler oci://ghcr.io/cytario/prowler --version 1.1.0
+
+# Or using Helm repository
+helm repo add prowler-app https://cytario.github.io/prowler-helm-chart
 helm repo update
 helm install prowler prowler-app/prowler
 ```
@@ -101,7 +105,7 @@ This chart implements several security features:
 - **RBAC**: Minimal read-only permissions for Kubernetes scanning
 - **Pod Security Standards**: Compliance with restricted security profile
 
-For detailed security configuration, see [SECURITY.md](https://github.com/promptlylabs/prowler-helm-chart/blob/main/SECURITY.md).
+For detailed security configuration, see [SECURITY.md](https://github.com/cytario/prowler-helm-chart/blob/main/SECURITY.md).
 
 ### Configuration
 
@@ -135,7 +139,7 @@ valkey:
 
 ## Security
 
-See [SECURITY.md](https://github.com/promptlylabs/prowler-helm-chart/blob/main/SECURITY.md) for comprehensive security documentation including:
+See [SECURITY.md](https://github.com/cytario/prowler-helm-chart/blob/main/SECURITY.md) for comprehensive security documentation including:
 - Security features overview
 - Best practices for production deployments
 - Secrets management
