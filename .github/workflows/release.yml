@@ -79,17 +79,25 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Update Chart.yaml
+      - name: Update Chart.yaml and README badges
         run: |
           VERSION="${{ needs.semantic_release.outputs.new_release_version }}"
           echo "Updating Chart.yaml to version ${VERSION}"
 
-          # Update both version and appVersion to match the app release
+          # Update chart version (NOT appVersion - that's the Prowler app version, updated manually)
           sed -i "s/^version:.*/version: ${VERSION}/" charts/prowler/Chart.yaml
-          sed -i "s/^appVersion:.*/appVersion: \"${VERSION}\"/" charts/prowler/Chart.yaml
 
           echo "Updated Chart.yaml:"
           cat charts/prowler/Chart.yaml
+
+          # Update version badges in README files
+          echo "Updating README badges..."
+          sed -i "s/Version-[0-9]*\.[0-9]*\.[0-9]*/Version-${VERSION}/g" README.md
+          sed -i "s/Version-[0-9]*\.[0-9]*\.[0-9]*/Version-${VERSION}/g" charts/prowler/README.md
+
+          # Update OCI install command version in README
+          sed -i "s/--version [0-9]*\.[0-9]*\.[0-9]*/--version ${VERSION}/g" README.md
+          sed -i "s/--version [0-9]*\.[0-9]*\.[0-9]*/--version ${VERSION}/g" charts/prowler/README.md
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
@@ -115,8 +123,7 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Chart**: prowler" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version**: ${{ needs.semantic_release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **App Version**: ${{ needs.semantic_release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Chart Version**: ${{ needs.semantic_release.outputs.new_release_version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Registry**: ghcr.io/${{ github.repository_owner }}/prowler" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### Install command:" >> $GITHUB_STEP_SUMMARY
