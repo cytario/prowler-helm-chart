@@ -58,17 +58,25 @@ plugins:
   - - "@semantic-release/exec"
     - verifyConditionsCmd: "echo 'Verifying Helm chart...'"
       prepareCmd: |
-        # Update Chart.yaml version
+        # Update Chart.yaml version (NOT appVersion - that's Prowler app version)
         sed -i "s/^version:.*/version: ${nextRelease.version}/" charts/prowler/Chart.yaml
 
-        # Update README badges
-        sed -i "s/Version-[0-9.]*/Version-${nextRelease.version}/" README.md
-        sed -i "s/Version-[0-9.]*/Version-${nextRelease.version}/" charts/prowler/README.md
+        # Update package.json version
+        sed -i 's/"version": "[0-9.]*"/"version": "${nextRelease.version}"/' package.json
+
+        # Update Version badges in README (only Version, NOT AppVersion)
+        sed -i "s|badge/Version-[0-9.]*|badge/Version-${nextRelease.version}|g" README.md
+        sed -i "s|badge/Version-[0-9.]*|badge/Version-${nextRelease.version}|g" charts/prowler/README.md
+
+        # Update OCI install command version in README
+        sed -i "s/--version [0-9.]*/--version ${nextRelease.version}/g" README.md
+        sed -i "s/--version [0-9.]*/--version ${nextRelease.version}/g" charts/prowler/README.md
 
   - - "@semantic-release/git"
     - assets:
         - CHANGELOG.md
         - charts/prowler/Chart.yaml
+        - package.json
         - README.md
         - charts/prowler/README.md
       message: "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"

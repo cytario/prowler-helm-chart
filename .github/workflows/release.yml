@@ -77,27 +77,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
+          # Checkout the release tag (includes changes from semantic-release)
+          ref: v${{ needs.semantic_release.outputs.new_release_version }}
           fetch-depth: 0
-
-      - name: Update Chart.yaml and README badges
-        run: |
-          VERSION="${{ needs.semantic_release.outputs.new_release_version }}"
-          echo "Updating Chart.yaml to version ${VERSION}"
-
-          # Update chart version (NOT appVersion - that's the Prowler app version, updated manually)
-          sed -i "s/^version:.*/version: ${VERSION}/" charts/prowler/Chart.yaml
-
-          echo "Updated Chart.yaml:"
-          cat charts/prowler/Chart.yaml
-
-          # Update version badges in README files
-          echo "Updating README badges..."
-          sed -i "s/Version-[0-9]*\.[0-9]*\.[0-9]*/Version-${VERSION}/g" README.md
-          sed -i "s/Version-[0-9]*\.[0-9]*\.[0-9]*/Version-${VERSION}/g" charts/prowler/README.md
-
-          # Update OCI install command version in README
-          sed -i "s/--version [0-9]*\.[0-9]*\.[0-9]*/--version ${VERSION}/g" README.md
-          sed -i "s/--version [0-9]*\.[0-9]*\.[0-9]*/--version ${VERSION}/g" charts/prowler/README.md
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
