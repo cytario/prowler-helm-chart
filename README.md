@@ -5,9 +5,8 @@ Images should use relative URLs.
 
 # Prowler Helm Chart
 
-![Version: 1.1.0](https://img.shields.io/badge/Version-1.1.1-informational?style=flat-square)
-![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-1.1.1-informational?style=flat-square)
-[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/prowler-app)](https://artifacthub.io/packages/helm/prowler-app/prowler)
+![Version: 1.1.1](https://img.shields.io/badge/Version-1.1.1-informational?style=flat-square)
+![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-5.17.1-informational?style=flat-square)
 
 **Deploy Prowler's web application on Kubernetes with this production-ready Helm chart.**
 
@@ -487,7 +486,7 @@ See [examples/README.md](examples/README.md) for usage instructions and more exa
 
 - **[Prowler Documentation](https://docs.prowler.com/)** - Official Prowler documentation
 - **[Prowler GitHub](https://github.com/prowler-cloud/prowler)** - Prowler source code
-- **[Artifact Hub](https://artifacthub.io/packages/helm/prowler-app/prowler)** - Chart on Artifact Hub
+- **[OCI Registry](https://ghcr.io/cytario/prowler)** - Helm chart OCI packages
 
 ## 🔄 Upgrading
 
@@ -630,7 +629,7 @@ This project is licensed under the Apache License 2.0 - see the [LICENSE](LICENS
 - **Chart Repository:** [prowler-helm-chart](https://github.com/cytario/prowler-helm-chart)
 - **Prowler:** [prowler-cloud/prowler](https://github.com/prowler-cloud/prowler)
 - **Documentation:** [docs.prowler.com](https://docs.prowler.com/)
-- **Artifact Hub:** [prowler-app/prowler](https://artifacthub.io/packages/helm/prowler-app/prowler)
+- **OCI Registry:** [ghcr.io/cytario/prowler](https://ghcr.io/cytario/prowler)
 
 ---
 

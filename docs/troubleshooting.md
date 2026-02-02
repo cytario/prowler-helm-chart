@@ -619,6 +619,128 @@ helm upgrade prowler charts/prowler \
 
 ---
 
+### AWS EFS CSI Driver - PVC Stuck in Pending
+
+**Symptoms:**
+```bash
+$ kubectl get pvc -n prowler
+NAME           STATUS    VOLUME   CAPACITY   ACCESS MODES   STORAGECLASS         AGE
+prowler-neo4j  Pending                                      efs-shared-storage   5m
+```
+
+**Error in events:**
+```
+Failed to fetch Access Points or Describe File System: List Access Points failed:
+operation error EFS: DescribeAccessPoints, get identity: get credentials:
+failed to refresh cached credentials, no EC2 IMDS role found
+```
+
+**Cause:** The EFS CSI driver doesn't have IAM permissions to manage EFS Access Points.
+
+**Root Cause Analysis:**
+1. The EFS CSI controller needs IAM permissions to:
+   - `elasticfilesystem:DescribeAccessPoints`
+   - `elasticfilesystem:DescribeFileSystems`
+   - `elasticfilesystem:DescribeMountTargets`
+   - `elasticfilesystem:CreateAccessPoint`
+   - `elasticfilesystem:DeleteAccessPoint`
+   - `elasticfilesystem:TagResource`
+
+2. Pod Identity does NOT work with EKS managed addons like EFS CSI driver
+3. You MUST use IRSA (IAM Roles for Service Accounts) instead
+
+**Solution - Use IRSA for EFS CSI Driver:**
+
+1. **Create IAM Role with trust policy for the service account:**
+```hcl
+# Terraform example
+data "aws_iam_policy_document" "efs_csi_driver_trust" {
+  statement {
+    effect = "Allow"
+    principals {
+      type        = "Federated"
+      identifiers = [module.eks.oidc_provider_arn]
+    }
+    actions = ["sts:AssumeRoleWithWebIdentity"]
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.oidc_provider, "https://", "")}:sub"
+      values   = ["system:serviceaccount:kube-system:efs-csi-controller-sa"]
+    }
+    condition {
+      test     = "StringEquals"
+      variable = "${replace(module.eks.oidc_provider, "https://", "")}:aud"
+      values   = ["sts.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "efs_csi_driver" {
+  name               = "efs-csi-driver-role"
+  assume_role_policy = data.aws_iam_policy_document.efs_csi_driver_trust.json
+}
+
+resource "aws_iam_role_policy_attachment" "efs_csi_driver" {
+  role       = aws_iam_role.efs_csi_driver.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy"
+}
+```
+
+2. **Configure EKS addon with the IAM role:**
+```hcl
+# In EKS cluster_addons
+aws-efs-csi-driver = {
+  most_recent              = true
+  service_account_role_arn = aws_iam_role.efs_csi_driver.arn
+}
+```
+
+3. **After applying changes, restart the EFS CSI controller (REQUIRED):**
+```bash
+kubectl rollout restart deployment/efs-csi-controller -n kube-system
+```
+
+4. **Verify the controller has credentials:**
+```bash
+# Check controller logs
+kubectl logs -n kube-system -l app=efs-csi-controller --tail=50
+
+# Check if PVC becomes Bound
+kubectl get pvc -n prowler -w
+```
+
+**Alternative - Manual Service Account Annotation:**
+```bash
+# If you already have an IAM role, annotate the service account
+kubectl annotate serviceaccount efs-csi-controller-sa \
+    -n kube-system \
+    eks.amazonaws.com/role-arn=arn:aws:iam::YOUR-ACCOUNT:role/AmazonEKS_EFS_CSI_DriverRole
+
+# Then restart the controller
+kubectl rollout restart deployment/efs-csi-controller -n kube-system
+```
+
+**StorageClass Configuration:**
+```yaml
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: efs-shared-storage
+provisioner: efs.csi.aws.com
+parameters:
+  provisioningMode: efs-ap
+  fileSystemId: fs-xxxxxxxxx
+  directoryPerms: "700"
+  gidRangeStart: "1000"
+  gidRangeEnd: "2000"
+  basePath: "/dynamic_provisioning"
+reclaimPolicy: Delete
+volumeBindingMode: Immediate
+allowVolumeExpansion: true
+```
+
+---
+
 ## Networking and Ingress Issues
 
 ### Ingress Returns 404 Not Found
