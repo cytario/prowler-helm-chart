@@ -661,6 +661,30 @@ neo4j:
     # Access mode
     accessMode: ReadWriteOnce
 
+  # Startup, liveness and readiness probes
+  # More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  startupProbe:
+    httpGet:
+      path: /
+      port: http
+    failureThreshold: 30
+    periodSeconds: 10
+    timeoutSeconds: 5
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+    periodSeconds: 20
+    failureThreshold: 3
+    timeoutSeconds: 5
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+    periodSeconds: 10
+    failureThreshold: 3
+    timeoutSeconds: 5
+
   # Resource requests and limits
   resources:
     requests:

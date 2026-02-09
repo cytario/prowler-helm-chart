@@ -79,24 +79,18 @@ spec:
             # Accept license agreement (required for Neo4j 5+)
             - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
               value: "yes"
+          {{- with .Values.neo4j.startupProbe }}
           startupProbe:
-            httpGet:
-              path: /
-              port: http
-            failureThreshold: 30
-            periodSeconds: 10
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.neo4j.livenessProbe }}
           livenessProbe:
-            httpGet:
-              path: /
-              port: http
-            periodSeconds: 20
-            failureThreshold: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.neo4j.readinessProbe }}
           readinessProbe:
-            httpGet:
-              path: /
-              port: http
-            periodSeconds: 10
-            failureThreshold: 3
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- with .Values.neo4j.resources }}
           resources:
             {{- toYaml . | nindent 12 }}
