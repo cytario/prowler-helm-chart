@@ -5,7 +5,7 @@ Images should use relative URLs.
 
 # Prowler Helm Chart
 
-![Version: 1.1.3](https://img.shields.io/badge/Version-1.1.5-informational?style=flat-square)
+![Version: 1.1.3](https://img.shields.io/badge/Version-1.2.0-informational?style=flat-square)
 ![AppVersion: 5.17.1](https://img.shields.io/badge/AppVersion-5.17.1-informational?style=flat-square)
 
 **Deploy Prowler's web application on Kubernetes with this production-ready Helm chart.**
@@ -111,7 +111,7 @@ Get Prowler running in 2 minutes:
 ```bash
 # Install from OCI registry (recommended)
 helm install prowler oci://ghcr.io/cytario/prowler \
-  --version 1.1.5 \
+  --version 1.2.0 \
   --create-namespace \
   --namespace prowler
 
@@ -143,7 +143,7 @@ Install directly from OCI registry (no repo add required):
 
 ```bash
 helm install prowler oci://ghcr.io/cytario/prowler \
-  --version 1.1.5 \
+  --version 1.2.0 \
   --create-namespace \
   --namespace prowler
 ```

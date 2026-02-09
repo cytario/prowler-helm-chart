@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0](https://github.com/cytario/prowler-helm-chart/compare/v1.1.5...v1.2.0) (2026-02-09)
+
+### Features
+
+* **neo4j:** make health probes configurable via values.yaml ([572eb00](https://github.com/cytario/prowler-helm-chart/commit/572eb00a91519476de5f593c144da23f9e409776))
+
 ## [1.1.5](https://github.com/cytario/prowler-helm-chart/compare/v1.1.4...v1.1.5) (2026-02-02)
 
 ### Bug Fixes
