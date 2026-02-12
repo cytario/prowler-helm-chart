@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1](https://github.com/cytario/prowler-helm-chart/compare/v1.3.0...v1.3.1) (2026-02-12)
+
+### Bug Fixes
+
+* **worker:** set PYTHONPATH for scan recovery script ([64cff9c](https://github.com/cytario/prowler-helm-chart/commit/64cff9c8ca942949f8d2d028fa575dde511f6394))
+
 ## [1.3.0](https://github.com/cytario/prowler-helm-chart/compare/v1.2.0...v1.3.0) (2026-02-12)
 
 ### Features
