@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.5](https://github.com/cytario/prowler-helm-chart/compare/v1.3.4...v1.3.5) (2026-02-12)
+
+### Bug Fixes
+
+* **neo4j:** use Recreate strategy to prevent RWO PVC store lock deadlock ([b444f67](https://github.com/cytario/prowler-helm-chart/commit/b444f671b8d8b3db8a98952ce2ed55730c3e3515))
+
 ## [1.3.4](https://github.com/cytario/prowler-helm-chart/compare/v1.3.3...v1.3.4) (2026-02-12)
 
 ### Bug Fixes
