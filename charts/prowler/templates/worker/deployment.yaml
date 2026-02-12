@@ -18,7 +18,7 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: runtime/default
         # Checksums to trigger automatic pod restarts on config changes
         checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
-        {{- if or .Values.worker.scanRecovery.enabled .Values.worker.scanRecoveryCronJob.enabled }}
+        {{- if .Values.worker.scanRecovery.enabled }}
         checksum/scan-recovery: {{ include (print $.Template.BasePath "/worker/configmap-scan-recovery.yaml") . | sha256sum }}
         {{- end }}
         {{- with .Values.worker.podAnnotations }}
@@ -64,6 +64,13 @@ spec:
             {{- include "prowler.env" . | nindent 12 }}
           envFrom:
             {{- include "prowler.envFrom" . | nindent 12 }}
+          resources:
+            limits:
+              cpu: 200m
+              memory: 256Mi
+            requests:
+              cpu: 50m
+              memory: 64Mi
           volumeMounts:
             - name: scan-recovery-script
               mountPath: /scripts
@@ -123,7 +130,7 @@ spec:
           persistentVolumeClaim:
             claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
           {{- end }}
-        {{- if or .Values.worker.scanRecovery.enabled .Values.worker.scanRecoveryCronJob.enabled }}
+        {{- if .Values.worker.scanRecovery.enabled }}
         - name: scan-recovery-script
           configMap:
             name: {{ include "prowler.fullname" . }}-scan-recovery
@@ -142,4 +149,16 @@ spec:
       {{- with .Values.worker.tolerations }}
       tolerations:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml .Values.worker.topologySpreadConstraints | nindent 8 }}
+      {{- else if .Values.worker.defaultTopologySpread }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker
       {{- end }}

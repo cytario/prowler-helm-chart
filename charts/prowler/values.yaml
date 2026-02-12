@@ -172,6 +172,13 @@ ui:
 
   affinity: {}
 
+  # Spread UI pods across nodes to survive single-node failures.
+  # When true, generates a soft (ScheduleAnyway) TopologySpreadConstraint
+  # keyed on kubernetes.io/hostname with the correct label selector.
+  defaultTopologySpread: true
+  # Override with custom topology spread constraints (takes precedence over defaultTopologySpread)
+  topologySpreadConstraints: []
+
 api:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
@@ -408,6 +415,10 @@ api:
 
   affinity: {}
 
+  # Spread API pods across nodes to survive single-node failures.
+  defaultTopologySpread: true
+  topologySpreadConstraints: []
+
 worker:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
@@ -512,6 +523,11 @@ worker:
   tolerations: []
 
   affinity: {}
+
+  # Spread worker pods across nodes so a single-node eviction doesn't kill all workers.
+  # Critical for Karpenter environments where node consolidation can evict entire workloads.
+  defaultTopologySpread: true
+  topologySpreadConstraints: []
 
   # Scan recovery init container configuration.
   # Recovers orphaned scans stuck in "executing" state after worker pod eviction.
@@ -645,6 +661,9 @@ worker_beat:
   tolerations: []
 
   affinity: {}
+
+  # Custom topology spread constraints (single replica, so no default spread)
+  topologySpreadConstraints: []
 
 # Neo4j (DozerDB) configuration for Attack Paths feature (Prowler 5.17+)
 # DozerDB is a Neo4j-compatible database optimized for Prowler

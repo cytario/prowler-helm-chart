@@ -5,6 +5,7 @@ metadata:
   name: {{ include "prowler.fullname" . }}-scan-recovery
   labels:
     {{- include "prowler.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scan-recovery
 spec:
   schedule: {{ .Values.worker.scanRecoveryCronJob.schedule | quote }}
   concurrencyPolicy: {{ .Values.worker.scanRecoveryCronJob.concurrencyPolicy }}
@@ -12,11 +13,13 @@ spec:
   failedJobsHistoryLimit: {{ .Values.worker.scanRecoveryCronJob.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
+      activeDeadlineSeconds: 300
       template:
         metadata:
           labels:
             {{- include "prowler.labels" . | nindent 12 }}
             app.kubernetes.io/name: {{ include "prowler.fullname" . }}-scan-recovery
+            app.kubernetes.io/component: scan-recovery
         spec:
           {{- with .Values.worker.imagePullSecrets }}
           imagePullSecrets:

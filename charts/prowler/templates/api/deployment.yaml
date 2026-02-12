@@ -137,3 +137,15 @@ spec:
       tolerations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      {{- if .Values.api.topologySpreadConstraints }}
+      topologySpreadConstraints:
+        {{- toYaml .Values.api.topologySpreadConstraints | nindent 8 }}
+      {{- else if .Values.api.defaultTopologySpread }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+      {{- end }}
