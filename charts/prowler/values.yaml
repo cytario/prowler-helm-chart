@@ -555,11 +555,11 @@ worker:
     failedJobsHistoryLimit: 3
     resources:
       limits:
-        cpu: 200m
-        memory: 256Mi
+        cpu: 500m
+        memory: 512Mi
       requests:
-        cpu: 50m
-        memory: 64Mi
+        cpu: 100m
+        memory: 256Mi
 
 worker_beat:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
