@@ -7,6 +7,11 @@ metadata:
     {{- include "prowler.neo4j.labels" . | nindent 4 }}
 spec:
   replicas: 1
+  # Recreate strategy is required because Neo4j uses a RWO PVC with a store lock.
+  # RollingUpdate would create the new pod before killing the old one, causing a
+  # deadlock where the new pod can never acquire the lock.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       {{- include "prowler.neo4j.selectorLabels" . | nindent 6 }}
