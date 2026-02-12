@@ -32,7 +32,7 @@ data:
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django.production")
     django.setup()
 
-    from config.celery import app  # noqa: E402
+    from config.celery import celery_app as app  # noqa: E402
     from datetime import timedelta  # noqa: E402
     from django.utils import timezone  # noqa: E402
     from api.models import Scan  # noqa: E402
