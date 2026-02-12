@@ -1,0 +1,115 @@
+{{- if or .Values.worker.scanRecovery.enabled .Values.worker.scanRecoveryCronJob.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "prowler.fullname" . }}-scan-recovery
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+data:
+  recover.py: |
+    """
+    Scan Recovery Script
+
+    Recovers orphaned scans stuck in "executing" state after worker pod eviction.
+    Supports two modes controlled by environment variables:
+
+    - Init container mode (RECOVERY_MODE=init):
+      Pings Celery broker for active workers. If none respond, marks executing
+      scans older than GRACE_PERIOD_SECONDS as failed.
+
+    - CronJob mode (RECOVERY_MODE=cronjob):
+      Marks scans stuck in "executing" longer than THRESHOLD_SECONDS as failed.
+      Does not check for active workers — uses time threshold only.
+
+    Skips recovery entirely if Valkey is unreachable (we cannot determine
+    whether workers are active, so it is unsafe to mark scans as failed).
+    """
+
+    import django
+    import os
+    import sys
+
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django.production")
+    django.setup()
+
+    from config.celery import app  # noqa: E402
+    from datetime import timedelta  # noqa: E402
+    from django.utils import timezone  # noqa: E402
+    from api.models import Scan  # noqa: E402
+
+    RECOVERY_MODE = os.environ.get("RECOVERY_MODE", "init")
+    GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", "600"))
+    THRESHOLD_SECONDS = int(os.environ.get("THRESHOLD_SECONDS", "7200"))
+
+
+    def check_broker_connectivity():
+        """Verify Valkey/broker is reachable before making recovery decisions."""
+        try:
+            conn = app.connection()
+            conn.ensure_connection(max_retries=3, interval_start=1, interval_step=1)
+            conn.close()
+            return True
+        except Exception as e:
+            print(f"ERROR: Cannot connect to broker: {e}")
+            return False
+
+
+    def count_active_workers():
+        """Ping Celery workers and return the count of those responding."""
+        try:
+            response = app.control.ping(timeout=5.0)
+            return len(response) if response else 0
+        except Exception as e:
+            print(f"Warning: Could not ping workers: {e}")
+            return 0
+
+
+    def recover_scans(queryset, reason):
+        """Mark matching scans as failed and print summary."""
+        count = queryset.count()
+        if count:
+            queryset.update(state="failed", completed_at=timezone.now())
+            print(f"Recovered {count} orphaned scan(s) ({reason})")
+        else:
+            print("No orphaned scans found")
+        return count
+
+
+    def init_mode():
+        """Init container recovery: check workers, then recover if none active."""
+        if not check_broker_connectivity():
+            print("Broker unreachable — skipping recovery (cannot verify worker state)")
+            sys.exit(0)
+
+        active = count_active_workers()
+        if active > 0:
+            print(f"{active} worker(s) still active — skipping recovery")
+            sys.exit(0)
+
+        print("No active workers detected — recovering orphaned scans")
+        qs = Scan.objects.filter(state="executing")
+        if GRACE_PERIOD_SECONDS > 0:
+            cutoff = timezone.now() - timedelta(seconds=GRACE_PERIOD_SECONDS)
+            qs = qs.filter(started_at__lt=cutoff)
+            print(f"Applying grace period: only scans started before {cutoff}")
+        recover_scans(qs, "init container recovery")
+
+
+    def cronjob_mode():
+        """CronJob recovery: use time threshold to find stuck scans."""
+        if not check_broker_connectivity():
+            print("Broker unreachable — skipping recovery")
+            sys.exit(0)
+
+        threshold = timedelta(seconds=THRESHOLD_SECONDS)
+        cutoff = timezone.now() - threshold
+        qs = Scan.objects.filter(state="executing", started_at__lt=cutoff)
+        recover_scans(qs, f"stuck longer than {threshold}")
+
+
+    if __name__ == "__main__":
+        if RECOVERY_MODE == "cronjob":
+            cronjob_mode()
+        else:
+            init_mode()
+{{- end }}

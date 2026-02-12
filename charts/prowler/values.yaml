@@ -412,6 +412,11 @@ worker:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
 
+  # Time in seconds to allow worker pods to gracefully shut down before being killed.
+  # This gives in-flight scans time to complete during voluntary disruptions
+  # (e.g., Karpenter consolidation, rolling updates).
+  terminationGracePeriodSeconds: 300
+
   # Pod Disruption Budget - ensures high availability during voluntary disruptions
   # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
   podDisruptionBudget:
@@ -507,6 +512,38 @@ worker:
   tolerations: []
 
   affinity: {}
+
+  # Scan recovery init container configuration.
+  # Recovers orphaned scans stuck in "executing" state after worker pod eviction.
+  # Runs as an init container before the Celery worker starts.
+  scanRecovery:
+    enabled: true
+    # Grace period in seconds — scans executing for less than this duration
+    # are considered still in-flight and will not be recovered.
+    # Set to 0 to recover all executing scans regardless of age.
+    gracePeriodSeconds: 600
+
+  # Periodic scan recovery CronJob configuration.
+  # Uses a time-based threshold to find and fail scans that have been
+  # in "executing" state for too long, without requiring a worker restart.
+  scanRecoveryCronJob:
+    enabled: false
+    # Cron schedule expression (default: every 15 minutes)
+    schedule: "*/15 * * * *"
+    # Scans executing longer than this threshold (seconds) are considered stuck
+    thresholdSeconds: 7200
+    # Kubernetes concurrency policy — Forbid prevents overlapping jobs
+    concurrencyPolicy: Forbid
+    # Number of successful/failed jobs to retain for debugging
+    successfulJobsHistoryLimit: 3
+    failedJobsHistoryLimit: 3
+    resources:
+      limits:
+        cpu: 200m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 64Mi
 
 worker_beat:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/

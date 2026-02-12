@@ -18,6 +18,9 @@ spec:
         seccomp.security.alpha.kubernetes.io/pod: runtime/default
         # Checksums to trigger automatic pod restarts on config changes
         checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
+        {{- if or .Values.worker.scanRecovery.enabled .Values.worker.scanRecoveryCronJob.enabled }}
+        checksum/scan-recovery: {{ include (print $.Template.BasePath "/worker/configmap-scan-recovery.yaml") . | sha256sum }}
+        {{- end }}
         {{- with .Values.worker.podAnnotations }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
@@ -35,9 +38,36 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "prowler.worker.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.worker.terminationGracePeriodSeconds }}
       {{- with .Values.worker.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.worker.scanRecovery.enabled }}
+      initContainers:
+        - name: scan-recovery
+          {{- with .Values.worker.securityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          command:
+            - /bin/sh
+            - -c
+            - cd /home/prowler/backend && poetry run python /scripts/recover.py
+          env:
+            - name: RECOVERY_MODE
+              value: "init"
+            - name: GRACE_PERIOD_SECONDS
+              value: {{ .Values.worker.scanRecovery.gracePeriodSeconds | quote }}
+            {{- include "prowler.env" . | nindent 12 }}
+          envFrom:
+            {{- include "prowler.envFrom" . | nindent 12 }}
+          volumeMounts:
+            - name: scan-recovery-script
+              mountPath: /scripts
+              readOnly: true
       {{- end }}
       containers:
         - name: worker
@@ -56,94 +86,9 @@ spec:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           envFrom:
-            - configMapRef:
-                name: {{ include "prowler.fullname" . }}-api
-            {{- if .Values.api.djangoConfigKeys.create }}
-            - secretRef:
-                name: {{ include "prowler.fullname" . }}-api-django-config-keys
-            {{- end }}
-            {{- with .Values.api.secrets }}
-            {{- range $index, $secret := . }}
-            - secretRef:
-                name: {{ $secret }}
-            {{- end }}
-            {{- end }}
+            {{- include "prowler.envFrom" . | nindent 12 }}
           env:
-            # PostgreSQL connection from external secret
-            - name: POSTGRES_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_HOST
-            - name: POSTGRES_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_PORT
-            - name: POSTGRES_ADMIN_USER
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_ADMIN_USER
-            - name: POSTGRES_ADMIN_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_ADMIN_PASSWORD
-            - name: POSTGRES_USER
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_USER
-            - name: POSTGRES_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_PASSWORD
-            - name: POSTGRES_DB
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-postgres-secret
-                  key: POSTGRES_DB
-            # Valkey connection from external secret
-            - name: VALKEY_HOST
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-valkey-secret
-                  key: VALKEY_HOST
-            - name: VALKEY_PORT
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-valkey-secret
-                  key: VALKEY_PORT
-            - name: VALKEY_DB
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-valkey-secret
-                  key: VALKEY_DB
-            - name: VALKEY_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: prowler-valkey-secret
-                  key: VALKEY_PASSWORD
-                  optional: true
-            {{- if .Values.neo4j.enabled }}
-            # Neo4j connection for Attack Paths feature
-            - name: NEO4J_HOST
-              value: {{ include "prowler.neo4j.fullname" . | quote }}
-            - name: NEO4J_PORT
-              value: {{ .Values.neo4j.service.port | quote }}
-            - name: NEO4J_USER
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "prowler.neo4j.fullname" . }}
-                  key: username
-            - name: NEO4J_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{ include "prowler.neo4j.fullname" . }}
-                  key: password
-            {{- end }}
+            {{- include "prowler.env" . | nindent 12 }}
           {{- with .Values.worker.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
@@ -178,6 +123,11 @@ spec:
           persistentVolumeClaim:
             claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
           {{- end }}
+        {{- if or .Values.worker.scanRecovery.enabled .Values.worker.scanRecoveryCronJob.enabled }}
+        - name: scan-recovery-script
+          configMap:
+            name: {{ include "prowler.fullname" . }}-scan-recovery
+        {{- end }}
         {{- with .Values.worker.volumes }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

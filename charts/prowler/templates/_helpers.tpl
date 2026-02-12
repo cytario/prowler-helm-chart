@@ -58,3 +58,106 @@ Usage: {{ include "prowler.componentLabels" (dict "component" "api" "context" .)
 {{ include "prowler.labels" .context }}
 app.kubernetes.io/component: {{ .component }}
 {{- end }}
+
+{{/*
+Shared envFrom block for API, Worker, and Worker Beat containers.
+Includes the API configmap, Django config keys secret, and any additional API secrets.
+Usage: {{- include "prowler.envFrom" . | nindent 12 }}
+*/}}
+{{- define "prowler.envFrom" -}}
+- configMapRef:
+    name: {{ include "prowler.fullname" . }}-api
+{{- if .Values.api.djangoConfigKeys.create }}
+- secretRef:
+    name: {{ include "prowler.fullname" . }}-api-django-config-keys
+{{- end }}
+{{- with .Values.api.secrets }}
+{{- range $index, $secret := . }}
+- secretRef:
+    name: {{ $secret }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+{{/*
+Shared env block for API, Worker, and Worker Beat containers.
+Includes PostgreSQL, Valkey, and optional Neo4j connection environment variables.
+Usage: {{- include "prowler.env" . | nindent 12 }}
+*/}}
+{{- define "prowler.env" -}}
+# PostgreSQL connection from external secret
+- name: POSTGRES_HOST
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_HOST
+- name: POSTGRES_PORT
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_PORT
+- name: POSTGRES_ADMIN_USER
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_ADMIN_USER
+- name: POSTGRES_ADMIN_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_ADMIN_PASSWORD
+- name: POSTGRES_USER
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_USER
+- name: POSTGRES_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_PASSWORD
+- name: POSTGRES_DB
+  valueFrom:
+    secretKeyRef:
+      name: prowler-postgres-secret
+      key: POSTGRES_DB
+# Valkey connection from external secret
+- name: VALKEY_HOST
+  valueFrom:
+    secretKeyRef:
+      name: prowler-valkey-secret
+      key: VALKEY_HOST
+- name: VALKEY_PORT
+  valueFrom:
+    secretKeyRef:
+      name: prowler-valkey-secret
+      key: VALKEY_PORT
+- name: VALKEY_DB
+  valueFrom:
+    secretKeyRef:
+      name: prowler-valkey-secret
+      key: VALKEY_DB
+- name: VALKEY_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: prowler-valkey-secret
+      key: VALKEY_PASSWORD
+      optional: true
+{{- if .Values.neo4j.enabled }}
+# Neo4j connection for Attack Paths feature
+- name: NEO4J_HOST
+  value: {{ include "prowler.neo4j.fullname" . | quote }}
+- name: NEO4J_PORT
+  value: {{ .Values.neo4j.service.port | quote }}
+- name: NEO4J_USER
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "prowler.neo4j.fullname" . }}
+      key: username
+- name: NEO4J_PASSWORD
+  valueFrom:
+    secretKeyRef:
+      name: {{ include "prowler.neo4j.fullname" . }}
+      key: password
+{{- end }}
+{{- end }}

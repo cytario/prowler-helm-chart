@@ -1,0 +1,71 @@
+{{- if .Values.worker.scanRecoveryCronJob.enabled }}
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "prowler.fullname" . }}-scan-recovery
+  labels:
+    {{- include "prowler.labels" . | nindent 4 }}
+spec:
+  schedule: {{ .Values.worker.scanRecoveryCronJob.schedule | quote }}
+  concurrencyPolicy: {{ .Values.worker.scanRecoveryCronJob.concurrencyPolicy }}
+  successfulJobsHistoryLimit: {{ .Values.worker.scanRecoveryCronJob.successfulJobsHistoryLimit }}
+  failedJobsHistoryLimit: {{ .Values.worker.scanRecoveryCronJob.failedJobsHistoryLimit }}
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "prowler.labels" . | nindent 12 }}
+            app.kubernetes.io/name: {{ include "prowler.fullname" . }}-scan-recovery
+        spec:
+          {{- with .Values.worker.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "prowler.worker.serviceAccountName" . }}
+          {{- with .Values.worker.podSecurityContext }}
+          securityContext:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          restartPolicy: OnFailure
+          containers:
+            - name: scan-recovery
+              {{- with .Values.worker.securityContext }}
+              securityContext:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+              command:
+                - /bin/sh
+                - -c
+                - cd /home/prowler/backend && poetry run python /scripts/recover.py
+              env:
+                - name: RECOVERY_MODE
+                  value: "cronjob"
+                - name: THRESHOLD_SECONDS
+                  value: {{ .Values.worker.scanRecoveryCronJob.thresholdSeconds | quote }}
+                {{- include "prowler.env" . | nindent 16 }}
+              envFrom:
+                {{- include "prowler.envFrom" . | nindent 16 }}
+              {{- with .Values.worker.scanRecoveryCronJob.resources }}
+              resources:
+                {{- toYaml . | nindent 16 }}
+              {{- end }}
+              volumeMounts:
+                - name: scan-recovery-script
+                  mountPath: /scripts
+                  readOnly: true
+          volumes:
+            - name: scan-recovery-script
+              configMap:
+                name: {{ include "prowler.fullname" . }}-scan-recovery
+          {{- with .Values.worker.nodeSelector }}
+          nodeSelector:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.worker.tolerations }}
+          tolerations:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+{{- end }}
