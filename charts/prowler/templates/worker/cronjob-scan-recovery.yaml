@@ -39,7 +39,7 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - cd /home/prowler/backend && poetry run python /scripts/recover.py
+                - cd /home/prowler/backend && PYTHONPATH=/home/prowler/backend poetry run python /scripts/recover.py
               env:
                 - name: RECOVERY_MODE
                   value: "cronjob"
