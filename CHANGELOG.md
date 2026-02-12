@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0](https://github.com/cytario/prowler-helm-chart/compare/v1.2.0...v1.3.0) (2026-02-12)
+
+### Features
+
+* **worker:** add scan recovery and refactor shared env helpers ([b4636c2](https://github.com/cytario/prowler-helm-chart/commit/b4636c2bb41306dfb6d501911c87151df741fb88))
+
 ## [1.2.0](https://github.com/cytario/prowler-helm-chart/compare/v1.1.5...v1.2.0) (2026-02-09)
 
 ### Features
