@@ -2,10 +2,22 @@
 nameOverride: ""
 fullnameOverride: ""
 
+# External secret names for PostgreSQL and Valkey connections.
+# These secrets must exist in the release namespace before installing the chart.
+# Override these if you use External Secrets Operator, Sealed Secrets, or any
+# tool that creates secrets with custom names.
+externalSecrets:
+  postgres:
+    # Name of the Kubernetes Secret containing PostgreSQL connection details
+    secretName: prowler-postgres-secret
+  valkey:
+    # Name of the Kubernetes Secret containing Valkey/Redis connection details
+    secretName: prowler-valkey-secret
+
 # External PostgreSQL and Valkey secrets are required
 # Create secrets with the following keys before installing:
 #
-# PostgreSQL secret (prowler-postgres-secret):
+# PostgreSQL secret (see externalSecrets.postgres.secretName):
 #   POSTGRES_HOST
 #   POSTGRES_PORT
 #   POSTGRES_ADMIN_USER
@@ -14,7 +26,7 @@ fullnameOverride: ""
 #   POSTGRES_PASSWORD
 #   POSTGRES_DB
 #
-# Valkey secret (prowler-valkey-secret):
+# Valkey secret (see externalSecrets.valkey.secretName):
 #   VALKEY_HOST
 #   VALKEY_PORT
 #   VALKEY_DB
@@ -51,6 +63,14 @@ ui:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
 
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional ingress rules
+    ingress: []
+    # Additional egress rules
+    egress: []
+
   # Pod Disruption Budget - ensures high availability during voluntary disruptions
   # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
   podDisruptionBudget:
@@ -65,6 +85,9 @@ ui:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    # Immutable image reference. When set, takes precedence over tag.
+    # Example: sha256:abc123...
+    digest: ""
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []
@@ -73,8 +96,8 @@ ui:
   serviceAccount:
     # Specifies whether a service account should be created
     create: true
-    # Automatically mount a ServiceAccount's API credentials?
-    automount: true
+    # UI does not need Kubernetes API access
+    automount: false
     # Annotations to add to the service account
     annotations: {}
     # The name of the service account to use.
@@ -144,6 +167,15 @@ ui:
     httpGet:
       path: /
       port: http
+  # Startup probe for UI (Next.js build/startup can take 10-30s)
+  # Example:
+  #   startupProbe:
+  #     httpGet:
+  #       path: /
+  #       port: http
+  #     failureThreshold: 30
+  #     periodSeconds: 10
+  startupProbe: {}
 
   # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
   autoscaling:
@@ -179,6 +211,35 @@ ui:
   # Override with custom topology spread constraints (takes precedence over defaultTopologySpread)
   topologySpreadConstraints: []
 
+  # Extra environment variables to add to UI pods.
+  # Example:
+  #   extraEnv:
+  #     - name: MY_VAR
+  #       value: "my-value"
+  #     - name: MY_SECRET
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: my-secret
+  #           key: password
+  extraEnv: []
+
+  # Extra envFrom sources to add to UI pods.
+  # Example:
+  #   extraEnvFrom:
+  #     - configMapRef:
+  #         name: my-extra-config
+  #     - secretRef:
+  #         name: my-extra-secret
+  extraEnvFrom: []
+
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional ingress rules
+    ingress: []
+    # Additional egress rules
+    egress: []
+
 api:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
@@ -197,6 +258,9 @@ api:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    # Immutable image reference. When set, takes precedence over tag.
+    # Example: sha256:abc123...
+    digest: ""
 
   # Network policy configuration
   networkPolicy:
@@ -223,7 +287,10 @@ api:
     DJANGO_FINDINGS_BATCH_SIZE: "1000"
     # The maximum number of items to delete in a single batch operation
     DJANGO_DELETION_BATCH_SIZE: "1000"
-    # Django settings
+    # SECURITY: Wildcard allows any Host header. In production, restrict to your actual
+    # domain(s) to prevent Host header injection attacks:
+    #   DJANGO_ALLOWED_HOSTS: "prowler.example.com,prowler-api.prowler.svc.cluster.local"
+    # Note: Internal service names must be included for pod-to-pod communication.
     DJANGO_ALLOWED_HOSTS: "*"
     DJANGO_BIND_ADDRESS: "0.0.0.0"
     DJANGO_PORT: "8080"
@@ -269,6 +336,12 @@ api:
     # - DJANGO_TOKEN_VERIFYING_KEY - obtain from `openssl rsa -in private.pem -pubout -out public.pem`
     # - DJANGO_SECRETS_ENCRYPTION_KEY - obtain from `openssl rand -base64 32`
     create: true
+    # Image used by the key generation Job.
+    # Must include kubectl and openssl binaries.
+    image:
+      repository: bitnami/kubectl
+      tag: "1.31.4"
+      pullPolicy: IfNotPresent
 
   # Secret names to be used as env vars.
   secrets: []
@@ -419,9 +492,37 @@ api:
   defaultTopologySpread: true
   topologySpreadConstraints: []
 
+  # Extra environment variables to add to API pods.
+  # Useful for per-component overrides (e.g., DJANGO_WORKERS on API only).
+  # Example:
+  #   extraEnv:
+  #     - name: MY_VAR
+  #       value: "my-value"
+  #     - name: MY_SECRET
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: my-secret
+  #           key: password
+  extraEnv: []
+
+  # Extra envFrom sources to add to API pods.
+  # Example:
+  #   extraEnvFrom:
+  #     - configMapRef:
+  #         name: my-extra-config
+  #     - secretRef:
+  #         name: my-extra-secret
+  extraEnvFrom: []
+
 worker:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
+
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional egress rules
+    egress: []
 
   # Time in seconds to allow worker pods to gracefully shut down before being killed.
   # This gives in-flight scans time to complete during voluntary disruptions
@@ -442,11 +543,52 @@ worker:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    # Immutable image reference. When set, takes precedence over tag.
+    # Example: sha256:abc123...
+    digest: ""
 
+  # Celery worker concurrency.
+  # By default, Celery uses multiprocessing.cpu_count() which reads the NODE CPU count,
+  # not the pod's CPU limit. A pod with 2 CPU on a 16-core node spawns 16 workers.
+  #
+  # To override (requires Prowler image support for CELERY_WORKER_CONCURRENCY env var):
+  #   extraEnv:
+  #     - name: CELERY_WORKER_CONCURRENCY
+  #       value: "4"
+  #
+  # Alternative: override the command/args to pass --concurrency directly:
+  #   args:
+  #     - worker
+  #     - --concurrency=4
   command:
     - /home/prowler/docker-entrypoint.sh
   args:
     - worker
+
+  # Container lifecycle hooks.
+  # Use preStop to ensure Celery workers finish in-flight tasks before SIGTERM.
+  #
+  # How Celery worker shutdown works:
+  #   1. Kubernetes sends SIGTERM to the container
+  #   2. Celery enters "warm shutdown" -- stops accepting new tasks, finishes current ones
+  #   3. If tasks don't finish within terminationGracePeriodSeconds, SIGKILL is sent
+  #
+  # IMPORTANT: Prowler uses acks_late=False by default (verify with your version).
+  # This means tasks are ACKed on receipt, NOT on completion. If a worker is killed
+  # mid-scan, the task is NOT retried -- the scan recovery mechanism handles this.
+  #
+  # The preStop hook adds a small delay before SIGTERM to allow the pod to be removed
+  # from Service endpoints first (prevents new connections during shutdown).
+  #
+  # Example:
+  #   lifecycle:
+  #     preStop:
+  #       exec:
+  #         command: ["/bin/sh", "-c", "sleep 15"]
+  #
+  # Tune terminationGracePeriodSeconds to match your longest expected scan duration.
+  # Default is 300s (5 minutes). For long-running scans, increase accordingly.
+  lifecycle: {}
 
   # This is for the secrets for pulling an image from a private repository more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/
   imagePullSecrets: []
@@ -496,6 +638,15 @@ worker:
   # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   livenessProbe: {}
   readinessProbe: {}
+  # Startup probe - useful for slow-starting workers (broker connection, task registration)
+  # Celery workers can take 30-120s to initialize. On new Karpenter nodes, add image pull time.
+  # Example:
+  #   startupProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "celery -A config.celery inspect ping --timeout 5"]
+  #     failureThreshold: 30
+  #     periodSeconds: 10
+  startupProbe: {}
 
   # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
   autoscaling:
@@ -529,6 +680,34 @@ worker:
   defaultTopologySpread: true
   topologySpreadConstraints: []
 
+  # Extra environment variables to add to worker pods.
+  # Useful for per-component overrides (e.g., CELERY_WORKER_CONCURRENCY on workers only).
+  # Example:
+  #   extraEnv:
+  #     - name: MY_VAR
+  #       value: "my-value"
+  #     - name: MY_SECRET
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: my-secret
+  #           key: password
+  extraEnv: []
+
+  # Extra envFrom sources to add to worker pods.
+  # Example:
+  #   extraEnvFrom:
+  #     - configMapRef:
+  #         name: my-extra-config
+  #     - secretRef:
+  #         name: my-extra-secret
+  extraEnvFrom: []
+
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional egress rules
+    egress: []
+
   # Scan recovery init container configuration.
   # Recovers orphaned scans stuck in "executing" state after worker pod eviction.
   # Runs as an init container before the Celery worker starts.
@@ -560,10 +739,32 @@ worker:
       requests:
         cpu: 100m
         memory: 256Mi
+    # ServiceAccount for the CronJob.
+    # By default, creates a dedicated SA without cloud scanning IAM privileges.
+    # Set create: false and name: "" to fall back to the worker ServiceAccount (not recommended).
+    serviceAccount:
+      create: true
+      # Do not mount K8s API token -- CronJob only needs PostgreSQL access
+      automount: false
+      annotations: {}
+      # Override the auto-generated name
+      name: ""
 
 worker_beat:
-  # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+  # IMPORTANT: Celery Beat must run as a singleton (exactly one replica).
+  # Running multiple beat instances causes duplicate task scheduling.
+  # The deployment uses strategy: Recreate to prevent overlap during upgrades.
   replicaCount: 1
+
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional egress rules
+    egress: []
+
+  # Time in seconds to allow beat pod to gracefully shut down.
+  # Beat does not process long-running tasks, so the default K8s value (30s) is usually fine.
+  terminationGracePeriodSeconds: 30
 
   # Pod Disruption Budget - for beat worker, we ensure at least 0 are available
   # (since only 1 should run at a time, but we want controlled disruption)
@@ -580,6 +781,9 @@ worker_beat:
     pullPolicy: IfNotPresent
     # Overrides the image tag whose default is the chart appVersion.
     tag: ""
+    # Immutable image reference. When set, takes precedence over tag.
+    # Example: sha256:abc123...
+    digest: ""
 
   command:
     - /home/prowler/docker-entrypoint.sh
@@ -593,8 +797,9 @@ worker_beat:
   serviceAccount:
     # Specifies whether a service account should be created
     create: true
-    # Automatically mount a ServiceAccount's API credentials?
-    automount: true
+    # Beat scheduler does not need Kubernetes API access.
+    # Set to true only if using Pod Identity webhook that requires projected tokens.
+    automount: false
     # Annotations to add to the service account
     annotations: {}
     # The name of the service account to use.
@@ -631,9 +836,43 @@ worker_beat:
     requests:
       cpu: 100m
       memory: 128Mi
-  # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  # Health probes for Celery Beat scheduler
+  # More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  #
+  # WARNING: The commonly suggested "celery inspect ping" does NOT verify beat --
+  # it pings workers via the broker. If workers respond but beat is dead, the probe passes.
+  # A reliable beat probe must check something beat-specific.
+  #
+  # Recommended approach (verify process name matches your Prowler version):
+  #   livenessProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "pgrep -f 'celery.*beat' > /dev/null"]
+  #     initialDelaySeconds: 120
+  #     periodSeconds: 60
+  #     failureThreshold: 3
+  #
+  # Alternative if Prowler's beat writes a schedule file:
+  #   livenessProbe:
+  #     exec:
+  #       command:
+  #         - /bin/sh
+  #         - -c
+  #         - |
+  #           # Fail if schedule file hasn't been touched in 5 minutes
+  #           find /tmp -name 'celerybeat-schedule' -mmin -5 | grep -q .
+  #     initialDelaySeconds: 120
+  #     periodSeconds: 60
+  #     failureThreshold: 3
   livenessProbe: {}
   readinessProbe: {}
+  # Startup probe for beat scheduler
+  # Example:
+  #   startupProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "pgrep -f 'celery.*beat' > /dev/null"]
+  #     failureThreshold: 30
+  #     periodSeconds: 10
+  startupProbe: {}
 
   # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
   autoscaling:
@@ -665,6 +904,34 @@ worker_beat:
   # Custom topology spread constraints (single replica, so no default spread)
   topologySpreadConstraints: []
 
+  # Extra environment variables to add to worker-beat pods.
+  # Useful for per-component overrides.
+  # Example:
+  #   extraEnv:
+  #     - name: MY_VAR
+  #       value: "my-value"
+  #     - name: MY_SECRET
+  #       valueFrom:
+  #         secretKeyRef:
+  #           name: my-secret
+  #           key: password
+  extraEnv: []
+
+  # Extra envFrom sources to add to worker-beat pods.
+  # Example:
+  #   extraEnvFrom:
+  #     - configMapRef:
+  #         name: my-extra-config
+  #     - secretRef:
+  #         name: my-extra-secret
+  extraEnvFrom: []
+
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional egress rules
+    egress: []
+
 # Neo4j (DozerDB) configuration for Attack Paths feature (Prowler 5.17+)
 # DozerDB is a Neo4j-compatible database optimized for Prowler
 neo4j:
@@ -677,6 +944,9 @@ neo4j:
     repository: graphstack/dozerdb
     tag: "5.26.3.0"
     pullPolicy: IfNotPresent
+    # Immutable image reference. When set, takes precedence over tag.
+    # Example: sha256:abc123...
+    digest: ""
 
   # Authentication configuration
   auth:
@@ -771,11 +1041,34 @@ neo4j:
   # This is for the secrets for pulling an image from a private repository
   imagePullSecrets: []
 
+  # ServiceAccount for Neo4j
+  serviceAccount:
+    # Specifies whether a service account should be created
+    create: true
+    # Neo4j does not need Kubernetes API access
+    automount: false
+    # Annotations to add to the service account
+    annotations: {}
+    # The name of the service account to use.
+    # If not set and create is true, a name is generated using the fullname template
+    name: ""
+
   # Pod annotations
   podAnnotations: {}
 
   # Pod labels
   podLabels: {}
+
+  # Grace period for Neo4j shutdown. Neo4j needs time to flush transactions and
+  # close the store lock. Default 120s covers most index build and transaction scenarios.
+  terminationGracePeriodSeconds: 120
+
+  # Pod Disruption Budget - protects the RWO PVC singleton during voluntary disruptions.
+  # In Karpenter environments, prevents eviction with insufficient grace period.
+  podDisruptionBudget:
+    enabled: false
+    minAvailable: 1
+    # maxUnavailable: 0
 
   # Node selector
   nodeSelector: {}
@@ -785,3 +1078,9 @@ neo4j:
 
   # Affinity rules
   affinity: {}
+
+  # Network policy configuration
+  networkPolicy:
+    enabled: false
+    # Additional ingress rules
+    ingress: []

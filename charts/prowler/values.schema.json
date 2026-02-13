@@ -153,6 +153,20 @@
                     "properties": {
                         "create": {
                             "type": "boolean"
+                        },
+                        "image": {
+                            "properties": {
+                                "repository": {
+                                    "type": "string"
+                                },
+                                "tag": {
+                                    "type": "string"
+                                },
+                                "pullPolicy": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
                         }
                     },
                     "type": "object"
@@ -166,6 +180,9 @@
                             "type": "string"
                         },
                         "tag": {
+                            "type": "string"
+                        },
+                        "digest": {
                             "type": "string"
                         }
                     },
@@ -389,6 +406,12 @@
                 },
                 "volumes": {
                     "type": "array"
+                },
+                "extraEnv": {
+                    "type": "array"
+                },
+                "extraEnvFrom": {
+                    "type": "array"
                 }
             },
             "type": "object"
@@ -398,6 +421,27 @@
         },
         "nameOverride": {
             "type": "string"
+        },
+        "externalSecrets": {
+            "properties": {
+                "postgres": {
+                    "properties": {
+                        "secretName": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "valkey": {
+                    "properties": {
+                        "secretName": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                }
+            },
+            "type": "object"
         },
         "postgresql": {
             "properties": {
@@ -509,12 +553,29 @@
                         },
                         "tag": {
                             "type": "string"
+                        },
+                        "digest": {
+                            "type": "string"
                         }
                     },
                     "type": "object"
                 },
                 "imagePullSecrets": {
                     "type": "array"
+                },
+                "networkPolicy": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "ingress": {
+                            "type": "array"
+                        },
+                        "egress": {
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
                 },
                 "ingress": {
                     "properties": {
@@ -691,6 +752,12 @@
                 },
                 "volumes": {
                     "type": "array"
+                },
+                "extraEnv": {
+                    "type": "array"
+                },
+                "extraEnvFrom": {
+                    "type": "array"
                 }
             },
             "type": "object"
@@ -776,12 +843,26 @@
                         },
                         "tag": {
                             "type": "string"
+                        },
+                        "digest": {
+                            "type": "string"
                         }
                     },
                     "type": "object"
                 },
                 "imagePullSecrets": {
                     "type": "array"
+                },
+                "networkPolicy": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "egress": {
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
                 },
                 "livenessProbe": {
                     "properties": {},
@@ -821,6 +902,10 @@
                     "properties": {},
                     "type": "object"
                 },
+                "startupProbe": {
+                    "properties": {},
+                    "type": "object"
+                },
                 "replicaCount": {
                     "type": "integer"
                 },
@@ -853,6 +938,11 @@
                 "terminationGracePeriodSeconds": {
                     "type": "integer",
                     "minimum": 0
+                },
+                "lifecycle": {
+                    "description": "Container lifecycle hooks for the worker container",
+                    "properties": {},
+                    "type": "object"
                 },
                 "scanRecovery": {
                     "properties": {
@@ -893,6 +983,24 @@
                         "resources": {
                             "properties": {},
                             "type": "object"
+                        },
+                        "serviceAccount": {
+                            "properties": {
+                                "create": {
+                                    "type": "boolean"
+                                },
+                                "automount": {
+                                    "type": "boolean"
+                                },
+                                "annotations": {
+                                    "properties": {},
+                                    "type": "object"
+                                },
+                                "name": {
+                                    "type": "string"
+                                }
+                            },
+                            "type": "object"
                         }
                     },
                     "type": "object"
@@ -904,6 +1012,12 @@
                     "type": "array"
                 },
                 "volumes": {
+                    "type": "array"
+                },
+                "extraEnv": {
+                    "type": "array"
+                },
+                "extraEnvFrom": {
                     "type": "array"
                 }
             },
@@ -960,12 +1074,26 @@
                         },
                         "tag": {
                             "type": "string"
+                        },
+                        "digest": {
+                            "type": "string"
                         }
                     },
                     "type": "object"
                 },
                 "imagePullSecrets": {
                     "type": "array"
+                },
+                "networkPolicy": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "egress": {
+                            "type": "array"
+                        }
+                    },
+                    "type": "object"
                 },
                 "livenessProbe": {
                     "properties": {},
@@ -1005,8 +1133,16 @@
                     "properties": {},
                     "type": "object"
                 },
+                "startupProbe": {
+                    "properties": {},
+                    "type": "object"
+                },
                 "replicaCount": {
                     "type": "integer"
+                },
+                "terminationGracePeriodSeconds": {
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "resources": {
                     "properties": {},
@@ -1042,6 +1178,12 @@
                 },
                 "volumes": {
                     "type": "array"
+                },
+                "extraEnv": {
+                    "type": "array"
+                },
+                "extraEnvFrom": {
+                    "type": "array"
                 }
             },
             "type": "object"
@@ -1060,6 +1202,9 @@
                             "type": "string"
                         },
                         "pullPolicy": {
+                            "type": "string"
+                        },
+                        "digest": {
                             "type": "string"
                         }
                     },
@@ -1139,6 +1284,24 @@
                 "imagePullSecrets": {
                     "type": "array"
                 },
+                "serviceAccount": {
+                    "properties": {
+                        "create": {
+                            "type": "boolean"
+                        },
+                        "automount": {
+                            "type": "boolean"
+                        },
+                        "annotations": {
+                            "properties": {},
+                            "type": "object"
+                        },
+                        "name": {
+                            "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
                 "podAnnotations": {
                     "properties": {},
                     "type": "object"
@@ -1156,6 +1319,35 @@
                 },
                 "affinity": {
                     "properties": {},
+                    "type": "object"
+                },
+                "terminationGracePeriodSeconds": {
+                    "type": "integer",
+                    "minimum": 0
+                },
+                "podDisruptionBudget": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "minAvailable": {
+                            "type": "integer"
+                        },
+                        "maxUnavailable": {
+                            "type": "integer"
+                        }
+                    },
+                    "type": "object"
+                },
+                "networkPolicy": {
+                    "properties": {
+                        "enabled": {
+                            "type": "boolean"
+                        },
+                        "ingress": {
+                            "type": "array"
+                        }
+                    },
                     "type": "object"
                 }
             },

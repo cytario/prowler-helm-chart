@@ -36,17 +36,19 @@ spec:
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      serviceAccountName: {{ include "prowler.neo4j.serviceAccountName" . }}
       {{- with .Values.neo4j.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.neo4j.terminationGracePeriodSeconds }}
       containers:
         - name: neo4j
           {{- with .Values.neo4j.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.neo4j.image.repository }}:{{ .Values.neo4j.image.tag }}"
+          image: "{{ include "prowler.image" (dict "imageConfig" .Values.neo4j.image "defaultTag" .Values.neo4j.image.tag) }}"
           imagePullPolicy: {{ .Values.neo4j.image.pullPolicy }}
           ports:
             - name: bolt

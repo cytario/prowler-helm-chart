@@ -1,0 +1,18 @@
+{{- if and .Values.neo4j.enabled .Values.neo4j.podDisruptionBudget.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "prowler.neo4j.fullname" . }}
+  labels:
+    {{- include "prowler.neo4j.labels" . | nindent 4 }}
+spec:
+  {{- if .Values.neo4j.podDisruptionBudget.minAvailable }}
+  minAvailable: {{ .Values.neo4j.podDisruptionBudget.minAvailable }}
+  {{- end }}
+  {{- if .Values.neo4j.podDisruptionBudget.maxUnavailable }}
+  maxUnavailable: {{ .Values.neo4j.podDisruptionBudget.maxUnavailable }}
+  {{- end }}
+  selector:
+    matchLabels:
+      {{- include "prowler.neo4j.selectorLabels" . | nindent 6 }}
+{{- end }}

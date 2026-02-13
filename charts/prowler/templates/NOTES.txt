@@ -24,7 +24,7 @@ If you haven't created the required secrets yet, the pods will fail to start.
 Create these secrets now:
 
 # PostgreSQL Secret
-kubectl create secret generic prowler-postgres-secret -n {{ .Release.Namespace }} \
+kubectl create secret generic {{ .Values.externalSecrets.postgres.secretName }} -n {{ .Release.Namespace }} \
   --from-literal=POSTGRES_HOST=your-postgres-host \
   --from-literal=POSTGRES_PORT=5432 \
   --from-literal=POSTGRES_ADMIN_USER=prowler_admin \
@@ -34,7 +34,7 @@ kubectl create secret generic prowler-postgres-secret -n {{ .Release.Namespace }
   --from-literal=POSTGRES_DB=prowler_db
 
 # Valkey/Redis Secret
-kubectl create secret generic prowler-valkey-secret -n {{ .Release.Namespace }} \
+kubectl create secret generic {{ .Values.externalSecrets.valkey.secretName }} -n {{ .Release.Namespace }} \
   --from-literal=VALKEY_HOST=your-redis-host \
   --from-literal=VALKEY_PORT=6379 \
   --from-literal=VALKEY_DB=0 \

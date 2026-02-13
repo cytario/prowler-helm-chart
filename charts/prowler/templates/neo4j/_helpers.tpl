@@ -20,3 +20,14 @@ Neo4j selector labels
 app.kubernetes.io/name: {{ include "prowler.neo4j.fullname" . }}
 app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
+
+{{/*
+Create the name of the Neo4j service account to use
+*/}}
+{{- define "prowler.neo4j.serviceAccountName" -}}
+{{- if .Values.neo4j.serviceAccount.create }}
+{{- default (include "prowler.neo4j.fullname" .) .Values.neo4j.serviceAccount.name }}
+{{- else }}
+{{- default "default" .Values.neo4j.serviceAccount.name }}
+{{- end }}
+{{- end }}

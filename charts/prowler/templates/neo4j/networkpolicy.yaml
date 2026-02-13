@@ -1,0 +1,31 @@
+{{- if and .Values.neo4j.enabled .Values.neo4j.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "prowler.neo4j.fullname" . }}
+  labels:
+    {{- include "prowler.neo4j.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "prowler.neo4j.selectorLabels" . | nindent 6 }}
+  policyTypes:
+  - Ingress
+  ingress:
+  # Allow Bolt and HTTP from API and Worker only
+  - from:
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+    - podSelector:
+        matchLabels:
+          app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker
+    ports:
+    - protocol: TCP
+      port: {{ .Values.neo4j.service.port }}
+    - protocol: TCP
+      port: {{ .Values.neo4j.service.httpPort }}
+  {{- with .Values.neo4j.networkPolicy.ingress }}
+  {{- toYaml . | nindent 2 }}
+  {{- end }}
+{{- end }}

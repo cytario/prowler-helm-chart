@@ -25,7 +25,7 @@ spec:
           imagePullSecrets:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          serviceAccountName: {{ include "prowler.worker.serviceAccountName" . }}
+          serviceAccountName: {{ include "prowler.scanRecovery.serviceAccountName" . }}
           {{- with .Values.worker.podSecurityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
@@ -37,7 +37,7 @@ spec:
               securityContext:
                 {{- toYaml . | nindent 16 }}
               {{- end }}
-              image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag | default .Chart.AppVersion }}"
+              image: "{{ include "prowler.image" (dict "imageConfig" .Values.worker.image "defaultTag" .Chart.AppVersion) }}"
               imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
               command:
                 - /bin/sh

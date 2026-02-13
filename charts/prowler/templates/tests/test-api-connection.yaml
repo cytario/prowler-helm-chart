@@ -10,7 +10,20 @@ metadata:
 spec:
   containers:
     - name: wget
-      image: busybox:latest
+      image: busybox:1.37.0
       command: ['wget']
       args: ['{{ include "prowler.fullname" . }}-api:{{ .Values.api.service.port }}/api/v1/docs']
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        capabilities:
+          drop:
+            - ALL
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
   restartPolicy: Never

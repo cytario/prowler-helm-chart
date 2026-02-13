@@ -1,4 +1,4 @@
-{{- if .Values.api.networkPolicy.enabled -}}
+{{- if .Values.worker.networkPolicy.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -41,19 +41,15 @@ spec:
     ports:
     - protocol: UDP
       port: 53
-  # Allow egress to cloud provider APIs for scanning
-  - to:
-    - namespaceSelector: {}
-    ports:
+  # Allow egress to cloud provider APIs (any destination on 443)
+  - ports:
     - protocol: TCP
       port: 443
-  # Allow egress to Kubernetes API for scanning
-  - to:
-    - namespaceSelector: {}
-    ports:
+  # Allow egress to Kubernetes API server (any destination on 6443)
+  - ports:
     - protocol: TCP
       port: 6443
-  {{- with .Values.api.networkPolicy.egress }}
+  {{- with .Values.worker.networkPolicy.egress }}
   {{- toYaml . | nindent 2 }}
   {{- end }}
 {{- end -}}

@@ -17,17 +17,17 @@ This chart deploys the [Prowler App](https://docs.prowler.com/projects/prowler-o
 ## ✨ Features
 
 - **🚀 One-Command Deployment** - Get Prowler running in minutes with sensible defaults
-- **🔒 Security by Default** - Pod Security Standards, non-root containers, auto-generated secrets
+- **🔒 Security by Default** - Pod Security Standards, non-root containers, auto-generated secrets, pinned images
 - **📊 Web UI & REST API** - User-friendly interface and programmatic access
 - **🔄 Scheduled Scanning** - Automatic recurring security scans with Celery
 - **📈 Horizontal Autoscaling** - Built-in HPA support for API and Workers
 - **💾 Flexible Storage** - Support for emptyDir, PVC, and cloud provider storage
 - **🗄️ Database Options** - Built-in PostgreSQL/Valkey or bring your own managed databases
 - **🌐 Ingress Ready** - Built-in Ingress configuration with TLS support
-- **🔐 RBAC & Network Policies** - Fine-grained access control and network segmentation
+- **🔐 RBAC & Network Policies** - Per-component network policies and fine-grained service accounts
 - **☁️ Cloud Native** - IAM roles for service accounts (AWS IRSA, Azure Workload Identity, GCP Workload Identity)
 - **📦 Production Examples** - Ready-to-use configurations for production deployments
-- **🔧 Highly Configurable** - Extensive customization options via values.yaml
+- **🔧 Highly Configurable** - `extraEnv`/`extraEnvFrom` per component, configurable secret names, image digest support
 
 ## 📋 Table of Contents
 
@@ -362,15 +362,69 @@ sharedStorage:
 
 #### Network Policies
 
+Network policies are now configured **per component** (v2.0.0+):
+
 ```yaml
-networkPolicy:
-  enabled: true
-  policyTypes:
-    - Ingress
-    - Egress
+api:
+  networkPolicy:
+    enabled: true
+
+worker:
+  networkPolicy:
+    enabled: true
+    egress: []
+
+ui:
+  networkPolicy:
+    enabled: true
+    ingress: []
+    egress: []
+
+neo4j:
+  networkPolicy:
+    enabled: true
+    ingress: []
 ```
 
-**Note:** Requires CNI plugin with network policy support (Calico, Cilium, etc.)
+**Note:** Requires CNI plugin with network policy support (Calico, Cilium, etc.). See [UPGRADING.md](UPGRADING.md) for migration from the previous single-toggle model.
+
+#### Extra Environment Variables
+
+Inject per-component environment variables without forking the chart:
+
+```yaml
+worker:
+  extraEnv:
+    - name: CELERY_WORKER_CONCURRENCY
+      value: "4"
+  extraEnvFrom:
+    - secretRef:
+        name: my-extra-secrets
+```
+
+All four components (`api`, `worker`, `worker_beat`, `ui`) support `extraEnv` and `extraEnvFrom`.
+
+#### Configurable Secret Names
+
+Use custom secret names for External Secrets Operator, Sealed Secrets, or any external secret management:
+
+```yaml
+externalSecrets:
+  postgres:
+    secretName: my-postgres-secret  # default: prowler-postgres-secret
+  valkey:
+    secretName: my-valkey-secret    # default: prowler-valkey-secret
+```
+
+#### Image Digests
+
+Pin images by immutable digest for supply-chain security:
+
+```yaml
+api:
+  image:
+    digest: "sha256:abc123..."  # takes precedence over tag when set
+```
 
 #### Cloud Provider IAM
 
@@ -418,10 +472,12 @@ This chart implements security best practices by default:
 - ✅ **Dropped Capabilities** - All Linux capabilities dropped except required ones
 - ✅ **Read-only Root Filesystem** - Where possible, filesystems are read-only
 - ✅ **Seccomp Profiles** - RuntimeDefault seccomp profile applied
-- ✅ **Auto-generated Secrets** - Django keys generated securely on install
+- ✅ **Auto-generated Secrets** - Django keys generated securely on install with pinned image
 - ✅ **No Hardcoded Secrets** - All secrets must be explicitly provided
-- ✅ **RBAC** - Minimal permissions with fine-grained service accounts
-- ✅ **Network Policies** - Optional pod-to-pod communication control
+- ✅ **RBAC** - Minimal permissions with dedicated service accounts per component (API, Worker, Neo4j, Scan Recovery)
+- ✅ **Network Policies** - Per-component network policies with least-privilege defaults
+- ✅ **Image Digest Support** - Pin images by immutable SHA256 digest
+- ✅ **Least-Privilege SA Tokens** - UI and Beat scheduler do not mount K8s API tokens by default
 
 ### Security Checklist for Production
 

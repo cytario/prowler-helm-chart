@@ -179,7 +179,114 @@ helm upgrade prowler prowler/prowler \
 
 ## Version-Specific Upgrade Notes
 
-### Neo4j Addition (Current Version)
+### Upgrading from v1.x to v2.0.0
+
+**Chart version 2.0.0 is a major release with breaking changes to values.yaml defaults.**
+
+The chart structure and API remain the same, but several default values have changed and new configuration keys have been added. Most existing deployments will work without changes, but you should review the breaking changes below.
+
+#### Breaking Changes
+
+| Change | Previous Default | New Default | Action Required |
+|--------|-----------------|-------------|-----------------|
+| `ui.serviceAccount.automount` | `true` | `false` | Set `true` if your UI pods need K8s API tokens (rare) |
+| `worker_beat.serviceAccount.automount` | `true` | `false` | Set `true` if using Pod Identity webhook on beat pods |
+| Network policy toggles | Single `api.networkPolicy.enabled` controlled all | Per-component: `worker.networkPolicy.enabled`, `ui.networkPolicy.enabled`, `worker_beat.networkPolicy.enabled` | If you had `api.networkPolicy.enabled: true`, also set the per-component toggles |
+| Worker-beat deployment strategy | `RollingUpdate` (Kubernetes default) | `Recreate` | None -- this fixes duplicate beat scheduling during upgrades |
+| Key generator image | `bitnami/kubectl:latest` | `bitnami/kubectl:1.31.4` (configurable via `api.djangoConfigKeys.image`) | None -- pinned for security |
+| Test pod images | `busybox:latest`, `curlimages/curl:latest` | `busybox:1.37.0`, `curlimages/curl:8.11.1` | None -- pinned for security |
+| Scan recovery logging | Unstructured `print()` | Structured JSON (ndjson) | Update log parsers if you relied on the old format |
+
+#### New Features
+
+- **`extraEnv` / `extraEnvFrom`** on all components -- inject per-component environment variables
+- **`externalSecrets.postgres.secretName`** / **`externalSecrets.valkey.secretName`** -- configurable secret names (defaults match v1.x hardcoded names)
+- **`*.image.digest`** -- pin any image by SHA256 digest (takes precedence over tag)
+- **`worker.lifecycle`** -- container lifecycle hooks (preStop for graceful shutdown)
+- **`worker_beat.terminationGracePeriodSeconds`** -- configurable grace period (default 30s)
+- **`neo4j.serviceAccount`** -- dedicated ServiceAccount for Neo4j (was using namespace `default`)
+- **`neo4j.terminationGracePeriodSeconds`** -- configurable grace period (default 120s)
+- **`neo4j.podDisruptionBudget`** -- optional PDB for Neo4j singleton
+- **`neo4j.networkPolicy`** -- Neo4j network policy (restricts ingress to API/Worker on Bolt/HTTP)
+- **`worker.scanRecoveryCronJob.serviceAccount`** -- dedicated ServiceAccount for CronJob (no cloud IAM)
+- **`startupProbe`** rendering on Worker, Worker-Beat, and UI (was only available on API)
+- **HPA `scaleTargetRef` fix** -- HPAs now correctly target their component Deployment
+- **Scan recovery optimistic concurrency** -- prevents race condition when recovering scans
+
+#### Migration Steps
+
+**1. Backup current values:**
+
+```bash
+helm get values prowler -n prowler > prowler-v1-values.yaml
+```
+
+**2. Check for affected values:**
+
+```bash
+# If you use network policies, add per-component toggles:
+grep -q "networkPolicy" prowler-v1-values.yaml && echo "ACTION: Add per-component networkPolicy.enabled"
+
+# If you set automount on UI or beat:
+grep -q "automount" prowler-v1-values.yaml && echo "CHECK: Review automount settings"
+```
+
+**3. Create migration values (only if you use network policies):**
+
+If you previously had `api.networkPolicy.enabled: true` expecting all policies to activate:
+
+```yaml
+# Add to your values file:
+worker:
+  networkPolicy:
+    enabled: true
+worker_beat:
+  networkPolicy:
+    enabled: true
+ui:
+  networkPolicy:
+    enabled: true
+```
+
+**4. If your UI or beat pods need K8s API tokens:**
+
+```yaml
+# Only needed if using Pod Identity webhook or similar:
+ui:
+  serviceAccount:
+    automount: true
+worker_beat:
+  serviceAccount:
+    automount: true
+```
+
+**5. Upgrade:**
+
+```bash
+helm upgrade prowler prowler-app/prowler \
+  -n prowler \
+  --version 2.0.0 \
+  -f prowler-v1-values.yaml \
+  -f migration-overrides.yaml \  # only if step 3/4 applies
+  --wait
+```
+
+**6. Verify:**
+
+```bash
+kubectl get pods -n prowler
+kubectl rollout status deployment/prowler-api -n prowler
+kubectl rollout status deployment/prowler-worker -n prowler
+helm test prowler -n prowler
+```
+
+#### Compatibility Note
+
+All new values have backward-compatible defaults. If you do not use network policies and do not depend on K8s API tokens in UI/beat pods, the upgrade requires no values changes.
+
+---
+
+### Neo4j Addition (v1.3.0)
 
 **New Feature:** Neo4j (DozerDB) is now included for Prowler's Attack Paths feature.
 
@@ -209,28 +316,6 @@ helm upgrade prowler charts/prowler \
   --reuse-values \
   --set neo4j.enabled=false
 ```
-
----
-
-### Upgrading to v1.0.0 (Future Release)
-
-**Breaking Changes:**
-- TBD
-
-**Migration Steps:**
-1. TBD
-
----
-
-### Upgrading from v0.x.x to v1.0.0 (When Available)
-
-**Breaking Changes:**
-- First stable release
-- API changes may occur
-- Configuration structure may change
-
-**Migration Steps:**
-Will be documented upon v1.0.0 release.
 
 ---
 
@@ -429,17 +514,23 @@ kubectl top pods -n prowler
 
 ### 5. Implement Health Checks
 
-Ensure your values include proper health checks:
+Ensure your values include proper health checks (v2.0.0+ supports `startupProbe` on all components):
 
 ```yaml
-api:
+worker:
   startupProbe:
-    enabled: true
-    initialDelaySeconds: 10
+    exec:
+      command: ["/bin/sh", "-c", "celery -A config.celery inspect ping --timeout 5"]
+    failureThreshold: 30
+    periodSeconds: 10
+
+worker_beat:
   livenessProbe:
-    enabled: true
-  readinessProbe:
-    enabled: true
+    exec:
+      command: ["/bin/sh", "-c", "pgrep -f 'celery.*beat' > /dev/null"]
+    initialDelaySeconds: 120
+    periodSeconds: 60
+    failureThreshold: 3
 ```
 
 ### 6. Use Gradual Rollout

@@ -8,6 +8,10 @@ spec:
   {{- if not .Values.worker_beat.autoscaling.enabled }}
   replicas: {{ .Values.worker_beat.replicaCount }}
   {{- end }}
+  # Recreate strategy is required because Celery Beat must be a singleton.
+  # RollingUpdate would momentarily run two beat schedulers, causing duplicate task dispatch.
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker-beat
@@ -39,13 +43,14 @@ spec:
       securityContext:
         {{- toYaml . | nindent 8 }}
       {{- end }}
+      terminationGracePeriodSeconds: {{ .Values.worker_beat.terminationGracePeriodSeconds }}
       containers:
         - name: worker-beat
           {{- with .Values.worker_beat.securityContext }}
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.worker_beat.image.repository }}:{{ .Values.worker_beat.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "prowler.image" (dict "imageConfig" .Values.worker_beat.image "defaultTag" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.worker_beat.image.pullPolicy }}
           {{- with .Values.worker_beat.command }}
           command:
@@ -57,14 +62,24 @@ spec:
           {{- end }}
           envFrom:
             {{- include "prowler.envFrom" . | nindent 12 }}
+            {{- with .Values.worker_beat.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           env:
             {{- include "prowler.env" . | nindent 12 }}
+            {{- with .Values.worker_beat.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- with .Values.worker_beat.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.worker_beat.readinessProbe }}
           readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.worker_beat.startupProbe }}
+          startupProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.worker_beat.resources }}

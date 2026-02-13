@@ -45,7 +45,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "prowler.image" (dict "imageConfig" .Values.api.image "defaultTag" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
           {{- with .Values.api.command }}
           command:
@@ -61,8 +61,14 @@ spec:
               protocol: TCP
           envFrom:
             {{- include "prowler.envFrom" . | nindent 12 }}
+            {{- with .Values.api.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           env:
             {{- include "prowler.env" . | nindent 12 }}
+            {{- with .Values.api.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- with .Values.api.startupProbe }}
           startupProbe:
             {{- toYaml . | nindent 12 }}

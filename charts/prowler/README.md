@@ -113,10 +113,34 @@ The chart can be customized using values. See `values.yaml` for all available op
 Common configurations:
 
 ```yaml
-# Enable network policies
+# Per-component network policies (v2.0.0+)
 api:
   networkPolicy:
     enabled: true
+worker:
+  networkPolicy:
+    enabled: true
+ui:
+  networkPolicy:
+    enabled: true
+
+# Per-component extra environment variables
+worker:
+  extraEnv:
+    - name: CELERY_WORKER_CONCURRENCY
+      value: "4"
+
+# Configurable secret names (for External Secrets Operator, etc.)
+externalSecrets:
+  postgres:
+    secretName: my-postgres-secret
+  valkey:
+    secretName: my-valkey-secret
+
+# Image digest pinning for supply-chain security
+api:
+  image:
+    digest: "sha256:abc123..."
 
 # Configure resource limits
 api:
@@ -131,7 +155,6 @@ api:
 # Use external databases
 postgresql:
   enabled: false
-
 valkey:
   enabled: false
 ```

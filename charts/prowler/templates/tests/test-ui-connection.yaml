@@ -10,7 +10,7 @@ metadata:
 spec:
   containers:
     - name: curl
-      image: curlimages/curl:latest
+      image: curlimages/curl:8.11.1
       command: ['sh', '-c']
       args:
         - |
@@ -22,4 +22,17 @@ spec:
           else
             exit 1
           fi
+      securityContext:
+        allowPrivilegeEscalation: false
+        readOnlyRootFilesystem: true
+        runAsNonRoot: true
+        runAsUser: 65534
+        capabilities:
+          drop:
+            - ALL
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 65534
+    seccompProfile:
+      type: RuntimeDefault
   restartPolicy: Never

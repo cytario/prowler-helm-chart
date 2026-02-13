@@ -50,7 +50,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "prowler.image" (dict "imageConfig" .Values.worker.image "defaultTag" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
           command:
             - /bin/sh
@@ -82,7 +82,7 @@ spec:
           securityContext:
             {{- toYaml . | nindent 12 }}
           {{- end }}
-          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag | default .Chart.AppVersion }}"
+          image: "{{ include "prowler.image" (dict "imageConfig" .Values.worker.image "defaultTag" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
           {{- with .Values.worker.command }}
           command:
@@ -92,16 +92,30 @@ spec:
           args:
             {{- toYaml . | nindent 12 }}
           {{- end }}
+          {{- with .Values.worker.lifecycle }}
+          lifecycle:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           envFrom:
             {{- include "prowler.envFrom" . | nindent 12 }}
+            {{- with .Values.worker.extraEnvFrom }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           env:
             {{- include "prowler.env" . | nindent 12 }}
+            {{- with .Values.worker.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- with .Values.worker.livenessProbe }}
           livenessProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.worker.readinessProbe }}
           readinessProbe:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          {{- with .Values.worker.startupProbe }}
+          startupProbe:
             {{- toYaml . | nindent 12 }}
           {{- end }}
           {{- with .Values.worker.resources }}

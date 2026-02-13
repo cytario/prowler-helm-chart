@@ -1,4 +1,4 @@
-{{- if .Values.api.networkPolicy.enabled -}}
+{{- if .Values.worker_beat.networkPolicy.enabled -}}
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -33,7 +33,7 @@ spec:
     ports:
     - protocol: UDP
       port: 53
-  {{- with .Values.api.networkPolicy.egress }}
+  {{- with .Values.worker_beat.networkPolicy.egress }}
   {{- toYaml . | nindent 2 }}
   {{- end }}
 {{- end -}}

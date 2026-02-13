@@ -19,15 +19,21 @@ data:
 
     - CronJob mode (RECOVERY_MODE=cronjob):
       Marks scans stuck in "executing" longer than THRESHOLD_SECONDS as failed.
-      Does not check for active workers — uses time threshold only.
+      Does not check for active workers -- uses time threshold only.
 
     Skips recovery entirely if Valkey is unreachable (we cannot determine
     whether workers are active, so it is unsafe to mark scans as failed).
+
+    Uses optimistic concurrency: only updates scans still in "executing" state
+    at UPDATE time, preventing races where a scan completes between query and update.
     """
 
     import django
+    import json
+    import logging
     import os
     import sys
+    import time
 
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.django.production")
     django.setup()
@@ -36,6 +42,26 @@ data:
     from datetime import timedelta  # noqa: E402
     from django.utils import timezone  # noqa: E402
     from api.models import Scan  # noqa: E402
+
+
+    class JsonFormatter(logging.Formatter):
+        def format(self, record):
+            log_entry = {
+                "timestamp": self.formatTime(record),
+                "level": record.levelname,
+                "message": record.getMessage(),
+                "logger": "scan-recovery",
+            }
+            if hasattr(record, "extra_data"):
+                log_entry.update(record.extra_data)
+            return json.dumps(log_entry)
+
+
+    logger = logging.getLogger("scan-recovery")
+    logger.setLevel(logging.INFO)
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(JsonFormatter())
+    logger.addHandler(handler)
 
     RECOVERY_MODE = os.environ.get("RECOVERY_MODE", "init")
     GRACE_PERIOD_SECONDS = int(os.environ.get("GRACE_PERIOD_SECONDS", "600"))
@@ -50,7 +76,7 @@ data:
             conn.close()
             return True
         except Exception as e:
-            print(f"ERROR: Cannot connect to broker: {e}")
+            logger.error("Cannot connect to broker", extra={"extra_data": {"error": str(e)}})
             return False
 
 
@@ -60,45 +86,53 @@ data:
             response = app.control.ping(timeout=5.0)
             return len(response) if response else 0
         except Exception as e:
-            print(f"Warning: Could not ping workers: {e}")
+            logger.warning("Could not ping workers", extra={"extra_data": {"error": str(e)}})
             return 0
 
 
     def recover_scans(queryset, reason):
-        """Mark matching scans as failed and print summary."""
+        """Mark matching scans as failed and log summary with scan IDs."""
         count = queryset.count()
         if count:
-            queryset.update(state="failed", completed_at=timezone.now())
-            print(f"Recovered {count} orphaned scan(s) ({reason})")
+            scan_ids = list(queryset.values_list("id", flat=True)[:50])
+            queryset.filter(state="executing").update(state="failed", completed_at=timezone.now())
+            logger.info(
+                "Recovered orphaned scans",
+                extra={"extra_data": {
+                    "count": count,
+                    "reason": reason,
+                    "scan_ids": [str(sid) for sid in scan_ids],
+                }},
+            )
         else:
-            print("No orphaned scans found")
+            logger.info("No orphaned scans found")
         return count
 
 
     def init_mode():
         """Init container recovery: check workers, then recover if none active."""
         if not check_broker_connectivity():
-            print("Broker unreachable — skipping recovery (cannot verify worker state)")
+            logger.warning("Broker unreachable -- skipping recovery (cannot verify worker state)")
             sys.exit(0)
 
         active = count_active_workers()
         if active > 0:
-            print(f"{active} worker(s) still active — skipping recovery")
+            logger.info("Workers still active -- skipping recovery", extra={"extra_data": {"active_workers": active}})
             sys.exit(0)
 
-        print("No active workers detected — recovering orphaned scans")
+        logger.info("No active workers detected -- recovering orphaned scans")
         qs = Scan.objects.filter(state="executing")
         if GRACE_PERIOD_SECONDS > 0:
             cutoff = timezone.now() - timedelta(seconds=GRACE_PERIOD_SECONDS)
             qs = qs.filter(started_at__lt=cutoff)
-            print(f"Applying grace period: only scans started before {cutoff}")
+            logger.info("Applying grace period", extra={"extra_data": {"cutoff": cutoff.isoformat(), "grace_seconds": GRACE_PERIOD_SECONDS}})
         recover_scans(qs, "init container recovery")
 
 
     def cronjob_mode():
         """CronJob recovery: use time threshold to find stuck scans."""
         if not check_broker_connectivity():
-            print("Broker unreachable — skipping recovery")
+            logger.warning("Broker unreachable -- skipping recovery")
             sys.exit(0)
 
         threshold = timedelta(seconds=THRESHOLD_SECONDS)
@@ -108,6 +142,7 @@ data:
 
 
     if __name__ == "__main__":
+        logger.info("Starting scan recovery", extra={"extra_data": {"mode": RECOVERY_MODE}})
         if RECOVERY_MODE == "cronjob":
             cronjob_mode()
         else:

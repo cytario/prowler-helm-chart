@@ -2,12 +2,12 @@
 
 ## Chart Structure
 - Chart path: `charts/prowler/`
-- Chart version: 1.3.2, appVersion: 5.17.1
+- Chart version: 1.3.5, appVersion: 5.17.1
 - Components: api, ui, worker, worker_beat, neo4j (DozerDB)
 - Shared env helpers: `prowler.env` and `prowler.envFrom` in `templates/_helpers.tpl` (refactored from duplicated blocks in 1.3.0)
 - ConfigMap `prowler-api` is shared across all components via `envFrom`
 - External secrets: `prowler-postgres-secret` (7 keys including admin), `prowler-valkey-secret` (4 keys)
-- Django config keys auto-generated via `djangoConfigKeys.create: true`
+- Django config keys auto-generated via `djangoConfigKeys.create: true` (via pre-install/pre-upgrade Job using unpinned bitnami/kubectl:latest)
 - Chart.yaml is MISSING `dependencies:` block (Chart.lock exists) -- pre-existing issue, `helm lint` fails
 
 ## Security Posture
@@ -19,6 +19,7 @@
 - Network policies exist but are gated behind `api.networkPolicy.enabled: false` (disabled by default)
 - Init container and CronJob now have resource limits (fixed in 1.3.2 review)
 - CronJob has `activeDeadlineSeconds: 300` to prevent stuck jobs
+- Neo4j has NO ServiceAccount -- uses namespace default SA
 
 ## Known Patterns & Issues
 - Secret names are hardcoded (not configurable via values) -- `prowler-postgres-secret`, `prowler-valkey-secret`
@@ -28,6 +29,19 @@
 - `DJANGO_SETTINGS_MODULE: config.django.production` is the standard settings path
 - **Duplicate label issue**: All deployments render `app.kubernetes.io/name` twice (from prowler.labels + explicit override). Pre-existing, not a regression.
 - POSTGRES_ADMIN credentials are injected to all containers via shared `prowler.env` helper even when not needed (design debt)
+- **All 4 HPAs have broken scaleTargetRef** -- name missing component suffix, silently target non-existent Deployment
+- **Worker-beat uses RollingUpdate** (should be Recreate for singleton), and HPA allows scaling to 10 replicas
+- No extraEnv/extraEnvFrom support on any component
+- No image digest support on any component
+- Test pod uses unpinned busybox:latest with no security context
+
+## v1.3.5 Change Request Review
+- See [guardian-review.md](../docs/guardian-review.md) for full analysis of 21 change requests
+- All 21 items verified as real issues
+- Items #2 and #3 downgraded from P0 to P1
+- Items #11 (SA automount) and #12 (network policies) are breaking changes
+- Item #10 (key generator Job) -- prefer eliminating Job in favor of Helm template-based key generation
+- 5 additional issues identified not in the original change requests
 
 ## Topology Spread (added 1.3.2)
 - API, UI, Worker have `defaultTopologySpread: true` with soft ScheduleAnyway constraint on hostname
@@ -44,9 +58,17 @@
 - ConfigMap gating: created when either init or CronJob is enabled
 - Checksum annotation: only on worker deployment when init container is enabled
 - PYTHONPATH fix was needed for import resolution (1.3.1 and 1.3.2 hotfixes)
+- CronJob inherits worker ServiceAccount with cloud IAM privileges (should have dedicated SA)
 
 ## values.schema.json
 - Added in the topology/affinity PR
 - Now covers: all top-level sections including neo4j, worker.scanRecovery, worker.scanRecoveryCronJob, worker.terminationGracePeriodSeconds, api.rbac, api.networkPolicy, api.startupProbe
 - Does NOT use `additionalProperties: false` -- accepts any key (non-strict validation)
 - Schema is permissive by design to not break custom values overrides
+- Must be updated when adding new values fields (extraEnv, digest, lifecycle, etc.)
+
+## Network Policy Architecture
+- All 4 policies gated by single toggle: `api.networkPolicy.enabled`
+- UI and worker-beat templates have copy-paste errors referencing `api.networkPolicy.ingress/egress`
+- Worker netpol egress uses `namespaceSelector: {}` for cloud APIs -- only matches in-cluster on most CNIs
+- No Neo4j or CronJob network policies exist

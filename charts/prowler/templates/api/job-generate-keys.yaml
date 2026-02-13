@@ -30,10 +30,11 @@ spec:
           type: RuntimeDefault
       containers:
       - name: generate-keys
-        image: bitnami/kubectl:latest
+        image: "{{ .Values.api.djangoConfigKeys.image.repository }}:{{ .Values.api.djangoConfigKeys.image.tag }}"
+        imagePullPolicy: {{ .Values.api.djangoConfigKeys.image.pullPolicy }}
         securityContext:
           allowPrivilegeEscalation: false
-          readOnlyRootFilesystem: false
+          readOnlyRootFilesystem: true
           runAsNonRoot: true
           runAsUser: 65534
           capabilities:
@@ -53,9 +54,6 @@ spec:
           fi
 
           echo "Generating new Django keys..."
-
-          # Install openssl (bitnami/kubectl image is based on debian)
-          apt-get update -qq && apt-get install -y -qq openssl > /dev/null 2>&1
 
           # Generate RSA key pair for JWT signing
           openssl genrsa -out /tmp/private.pem 2048 2>/dev/null
