@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.3](https://github.com/cytario/prowler-helm-chart/compare/v2.0.2...v2.0.3) (2026-02-13)
+
+### Bug Fixes
+
+* replace pgrep/celery probe examples with /proc-based checks ([121012b](https://github.com/cytario/prowler-helm-chart/commit/121012b5f34de94edf1f5deb0012c1b63f581f73))
+
 ## [2.0.2](https://github.com/cytario/prowler-helm-chart/compare/v2.0.1...v2.0.2) (2026-02-13)
 
 ### Bug Fixes
