@@ -633,17 +633,31 @@ worker:
     requests:
       cpu: 500m
       memory: 512Mi
-  # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
-  livenessProbe: {}
-  readinessProbe: {}
-  # Startup probe - useful for slow-starting workers (broker connection, task registration)
-  # Celery workers can take 30-120s to initialize. On new Karpenter nodes, add image pull time.
-  # Example:
+  # Health probes for Celery workers
+  # More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
+  #
+  # NOTE: The Prowler API image does NOT include pgrep, ps, or celery in PATH.
+  # The celery binary is inside a poetry virtualenv whose path may change between versions.
+  # Use /proc-based checks for reliable probes.
+  #
+  # Recommended approach (checks entrypoint process contains "worker"):
+  #   livenessProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "grep -q worker /proc/1/cmdline"]
+  #     periodSeconds: 60
+  #     failureThreshold: 3
+  #   readinessProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "grep -q worker /proc/1/cmdline"]
+  #     periodSeconds: 30
+  #     failureThreshold: 3
   #   startupProbe:
   #     exec:
-  #       command: ["/bin/sh", "-c", "celery -A config.celery inspect ping --timeout 5"]
+  #       command: ["/bin/sh", "-c", "grep -q worker /proc/1/cmdline"]
   #     failureThreshold: 30
   #     periodSeconds: 10
+  livenessProbe: {}
+  readinessProbe: {}
   startupProbe: {}
 
   # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
@@ -841,13 +855,24 @@ worker_beat:
   # it pings workers via the broker. If workers respond but beat is dead, the probe passes.
   # A reliable beat probe must check something beat-specific.
   #
-  # Recommended approach (verify process name matches your Prowler version):
+  # NOTE: The Prowler API image does NOT include pgrep or ps. Use /proc-based checks instead.
+  #
+  # Recommended approach (checks entrypoint process contains "beat"):
   #   livenessProbe:
   #     exec:
-  #       command: ["/bin/sh", "-c", "pgrep -f 'celery.*beat' > /dev/null"]
-  #     initialDelaySeconds: 120
+  #       command: ["/bin/sh", "-c", "grep -q beat /proc/1/cmdline"]
   #     periodSeconds: 60
   #     failureThreshold: 3
+  #   readinessProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "grep -q beat /proc/1/cmdline"]
+  #     periodSeconds: 30
+  #     failureThreshold: 3
+  #   startupProbe:
+  #     exec:
+  #       command: ["/bin/sh", "-c", "grep -q beat /proc/1/cmdline"]
+  #     failureThreshold: 30
+  #     periodSeconds: 10
   #
   # Alternative if Prowler's beat writes a schedule file:
   #   livenessProbe:
@@ -858,18 +883,10 @@ worker_beat:
   #         - |
   #           # Fail if schedule file hasn't been touched in 5 minutes
   #           find /tmp -name 'celerybeat-schedule' -mmin -5 | grep -q .
-  #     initialDelaySeconds: 120
   #     periodSeconds: 60
   #     failureThreshold: 3
   livenessProbe: {}
   readinessProbe: {}
-  # Startup probe for beat scheduler
-  # Example:
-  #   startupProbe:
-  #     exec:
-  #       command: ["/bin/sh", "-c", "pgrep -f 'celery.*beat' > /dev/null"]
-  #     failureThreshold: 30
-  #     periodSeconds: 10
   startupProbe: {}
 
   # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
