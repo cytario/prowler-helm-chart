@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.0](https://github.com/cytario/prowler-helm-chart/compare/v1.3.5...v2.0.0) (2026-02-13)
+
+### ⚠ BREAKING CHANGES
+
+* ui.serviceAccount.automount and
+worker_beat.serviceAccount.automount now default to false. Network
+policies are now per-component (worker.networkPolicy.enabled,
+ui.networkPolicy.enabled, worker_beat.networkPolicy.enabled) instead
+of the single api.networkPolicy.enabled toggle. Scan recovery script
+now outputs structured JSON logs instead of plain text.
+
+### Features
+
+* comprehensive chart hardening, security fixes, and extensibility ([1e236eb](https://github.com/cytario/prowler-helm-chart/commit/1e236eb77b4dbcf0581bf387b5c6dabe6882b57d))
+
 ## [1.3.5](https://github.com/cytario/prowler-helm-chart/compare/v1.3.4...v1.3.5) (2026-02-12)
 
 ### Bug Fixes
