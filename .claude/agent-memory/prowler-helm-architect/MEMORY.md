@@ -1,7 +1,7 @@
 # Prowler Helm Chart - Architect Memory
 
 ## Chart Structure
-- Chart root: `charts/prowler/` (chart v1.3.5, appVersion 5.17.1)
+- Chart root: `charts/prowler/` (chart v2.0.0, appVersion 5.17.1)
 - Templates organized by component: `api/`, `worker/`, `worker_beat/`, `neo4j/`, `ui/`, `tests/`
 - Shared helpers in `templates/_helpers.tpl`, per-component helpers in `<component>/_helpers.tpl`
 - JSON schema validation: `values.schema.json` exists and must be kept in sync with every values.yaml change
@@ -29,7 +29,7 @@
 - Worker/worker-beat/UI templates missing startupProbe rendering
 - ~~Network policies: all gated by `api.networkPolicy.enabled`, copy-paste errors in UI/worker-beat templates~~ FIXED Phase 6
 - ~~Neo4j has no ServiceAccount (falls back to namespace `default`)~~ FIXED Phase 3
-- ~~Key generator job uses unpinned `bitnami/kubectl:latest` with runtime `apt-get install`~~ FIXED Phase 3
+- ~~Key generator job uses unpinned `bitnami/kubectl:latest` with runtime `apt-get install`~~ FIXED Phase 3, then rewritten to use Prowler API image with Python `cryptography` lib (no external image dependency)
 - ~~Test pods use unpinned `busybox:latest` / `curlimages/curl:latest` with no securityContext~~ FIXED Phase 7
 
 ## Scan Recovery Architecture

@@ -153,20 +153,6 @@
                     "properties": {
                         "create": {
                             "type": "boolean"
-                        },
-                        "image": {
-                            "properties": {
-                                "repository": {
-                                    "type": "string"
-                                },
-                                "tag": {
-                                    "type": "string"
-                                },
-                                "pullPolicy": {
-                                    "type": "string"
-                                }
-                            },
-                            "type": "object"
                         }
                     },
                     "type": "object"

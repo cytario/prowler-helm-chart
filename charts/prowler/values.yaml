@@ -328,20 +328,18 @@ api:
     # GITHUB_OAUTH_CLIENT_SECRET: ""
     # GITHUB_OAUTH_CALLBACK_URL: ""
   djangoConfigKeys:
-    # Create secret with Django Keys using template-based generation
-    # Keys are automatically generated using secure random values with Helm lookup for persistence
-    # If false, you must manually create the secret
-    # For production, consider generating keys manually:
-    # - DJANGO_TOKEN_SIGNING_KEY - obtain from `openssl genrsa -out private.pem 2048`
-    # - DJANGO_TOKEN_VERIFYING_KEY - obtain from `openssl rsa -in private.pem -pubout -out public.pem`
-    # - DJANGO_SECRETS_ENCRYPTION_KEY - obtain from `openssl rand -base64 32`
+    # Create secret with Django JWT signing keys and encryption key.
+    # Uses the Prowler API image (no external image dependency).
+    # Keys are generated on first install and preserved across upgrades.
+    #
+    # For production, generate keys manually and set create: false:
+    #   openssl genrsa -out private.pem 2048
+    #   openssl rsa -in private.pem -pubout -out public.pem
+    #   kubectl create secret generic <release>-api-django-config-keys \
+    #     --from-file=DJANGO_TOKEN_SIGNING_KEY=private.pem \
+    #     --from-file=DJANGO_TOKEN_VERIFYING_KEY=public.pem \
+    #     --from-literal=DJANGO_SECRETS_ENCRYPTION_KEY=$(openssl rand -base64 32)
     create: true
-    # Image used by the key generation Job.
-    # Must include kubectl and openssl binaries.
-    image:
-      repository: bitnami/kubectl
-      tag: "1.31.4"
-      pullPolicy: IfNotPresent
 
   # Secret names to be used as env vars.
   secrets: []
