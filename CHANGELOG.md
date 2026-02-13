@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [2.0.2](https://github.com/cytario/prowler-helm-chart/compare/v2.0.1...v2.0.2) (2026-02-13)
+
+### Bug Fixes
+
+* avoid using separate kubectl image ([e7af682](https://github.com/cytario/prowler-helm-chart/commit/e7af682e66ee8be99cba37130b5e22a616e08acd))
+
 ## [2.0.1](https://github.com/cytario/prowler-helm-chart/compare/v2.0.0...v2.0.1) (2026-02-13)
 
 ### Bug Fixes
