@@ -262,14 +262,6 @@ api:
     # Additional egress rules
     egress: []
 
-  # RBAC configuration for Kubernetes scanning
-  rbac:
-    # Create ClusterRole and ClusterRoleBinding for Kubernetes resource scanning
-    # Set to false if you don't plan to scan Kubernetes resources
-    create: true
-    # Additional RBAC rules to append
-    rules: []
-
   # Shared with celery-worker and celery-beat
   djangoConfig:
     # API scan settings
@@ -602,6 +594,16 @@ worker:
     # The name of the service account to use.
     # If not set and create is true, a name is generated using the fullname template
     name: ""
+
+  # RBAC configuration for Kubernetes scanning
+  # The Worker pods execute K8s provider scans and need cluster-wide read access.
+  # The API server does NOT need these permissions.
+  rbac:
+    # Create ClusterRole and ClusterRoleBinding for Kubernetes resource scanning
+    # Set to false if you don't plan to scan Kubernetes resources
+    create: true
+    # Additional RBAC rules to append to the default set
+    rules: []
 
   # This is for setting Kubernetes Annotations to a Pod.
   # For more information checkout: https://kubernetes.io/docs/concepts/overview/working-with-objects/annotations/
@@ -957,15 +959,17 @@ neo4j:
     # Auto-generated password is preserved across upgrades
     password: ""
 
-  # Neo4j/DozerDB configuration
+  # Neo4j/DozerDB 5.x configuration
+  # Memory settings map to server.memory.* (Neo4j 5.x prefix).
+  # Database settings map to initial.dbms.* (applied at first startup only).
   config:
-    # Maximum number of databases (for multi-tenant support)
+    # Maximum number of databases (initial.dbms.max_databases, first startup only)
     maxDatabases: 1000
-    # Page cache size for performance
+    # Page cache size (server.memory.pagecache.size)
     pagecacheSize: "1G"
-    # Initial JVM heap size
+    # Initial JVM heap size (server.memory.heap.initial_size)
     heapInitialSize: "1G"
-    # Maximum JVM heap size
+    # Maximum JVM heap size (server.memory.heap.max_size)
     heapMaxSize: "1G"
 
   # Service configuration

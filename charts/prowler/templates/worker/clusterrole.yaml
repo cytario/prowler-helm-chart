@@ -1,10 +1,10 @@
-{{- if .Values.api.rbac.create -}}
+{{- if .Values.worker.rbac.create -}}
 # Kubernetes RBAC permissions for Prowler to scan the cluster
 # Reference: https://docs.prowler.com/projects/prowler-open-source/en/latest/tutorials/prowler-app/#step-44-kubernetes-credentials
 #
-# These permissions allow Prowler to perform security scans of the Kubernetes cluster.
+# These permissions allow Prowler workers to perform security scans of the Kubernetes cluster.
 # If you don't plan to scan Kubernetes resources, you can disable this by setting:
-#   api.rbac.create: false
+#   worker.rbac.create: false
 #
 # The ClusterRole grants read-only access to security-relevant resources:
 # - pods, configmaps, nodes, namespaces: for configuration and deployment analysis
@@ -12,7 +12,7 @@
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: {{ include "prowler.fullname" . }}-api
+  name: {{ include "prowler.fullname" . }}-worker
   labels:
     {{- include "prowler.labels" . | nindent 4 }}
 rules:
@@ -36,22 +36,22 @@ rules:
 - apiGroups: ["policy"]
   resources: ["podsecuritypolicies", "poddisruptionbudgets"]
   verbs: ["get", "list"]
-{{- with .Values.api.rbac.rules }}
+{{- with .Values.worker.rbac.rules }}
 {{- toYaml . | nindent 0 }}
 {{- end }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: {{ include "prowler.fullname" . }}-api
+  name: {{ include "prowler.fullname" . }}-worker
   labels:
     {{- include "prowler.labels" . | nindent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: {{ include "prowler.fullname" . }}-api
+  name: {{ include "prowler.fullname" . }}-worker
 subjects:
 - kind: ServiceAccount
-  name: {{ include "prowler.api.serviceAccountName" . }}
+  name: {{ include "prowler.worker.serviceAccountName" . }}
   namespace: {{ .Release.Namespace }}
 {{- end -}}

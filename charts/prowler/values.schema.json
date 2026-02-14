@@ -191,17 +191,6 @@
                     },
                     "type": "object"
                 },
-                "rbac": {
-                    "properties": {
-                        "create": {
-                            "type": "boolean"
-                        },
-                        "rules": {
-                            "type": "array"
-                        }
-                    },
-                    "type": "object"
-                },
                 "ingress": {
                     "properties": {
                         "annotations": {
@@ -927,6 +916,18 @@
                         },
                         "name": {
                             "type": "string"
+                        }
+                    },
+                    "type": "object"
+                },
+                "rbac": {
+                    "description": "RBAC configuration for Kubernetes scanning. Worker pods execute K8s provider scans and need cluster-wide read access.",
+                    "properties": {
+                        "create": {
+                            "type": "boolean"
+                        },
+                        "rules": {
+                            "type": "array"
                         }
                     },
                     "type": "object"
