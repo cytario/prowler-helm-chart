@@ -84,6 +84,18 @@ spec:
           {{- end }}
           image: "{{ include "prowler.image" (dict "imageConfig" .Values.worker.image "defaultTag" .Chart.AppVersion) }}"
           imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          {{- if .Values.worker.concurrency }}
+          command:
+            - /bin/sh
+            - -c
+          args:
+            - |
+              cd /home/prowler/backend && exec poetry run python -m celery -A config.celery worker \
+                -l "${DJANGO_LOGGING_LEVEL:-info}" \
+                -Q "{{ .Values.worker.queues }}" \
+                -E --max-tasks-per-child 1 \
+                --concurrency={{ .Values.worker.concurrency | int }}
+          {{- else }}
           {{- with .Values.worker.command }}
           command:
             {{- toYaml . | nindent 12 }}
@@ -91,6 +103,7 @@ spec:
           {{- with .Values.worker.args }}
           args:
             {{- toYaml . | nindent 12 }}
+          {{- end }}
           {{- end }}
           {{- with .Values.worker.lifecycle }}
           lifecycle:

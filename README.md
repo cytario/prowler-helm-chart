@@ -388,6 +388,23 @@ neo4j:
 
 **Note:** Requires CNI plugin with network policy support (Calico, Cilium, etc.). See [UPGRADING.md](UPGRADING.md) for migration from the previous single-toggle model.
 
+#### Worker Concurrency Control
+
+Control the number of concurrent Celery worker processes to prevent OOM kills:
+
+```yaml
+worker:
+  # Each scan task uses ~1-1.5 GiB. Size memory limits relative to concurrency.
+  concurrency: 2        # default; set to null to use celery default (cpu_count)
+  resources:
+    limits:
+      memory: 4Gi       # concurrency * 2 GiB
+    requests:
+      memory: 2Gi
+```
+
+When `concurrency` is set, the chart bypasses the Prowler entrypoint and invokes Celery directly with `--concurrency N`. This is necessary because the upstream entrypoint does not support the `CELERY_WORKER_CONCURRENCY` environment variable.
+
 #### Extra Environment Variables
 
 Inject per-component environment variables without forking the chart:
@@ -395,8 +412,8 @@ Inject per-component environment variables without forking the chart:
 ```yaml
 worker:
   extraEnv:
-    - name: CELERY_WORKER_CONCURRENCY
-      value: "4"
+    - name: MY_CUSTOM_VAR
+      value: "my-value"
   extraEnvFrom:
     - secretRef:
         name: my-extra-secrets

@@ -777,6 +777,16 @@
         },
         "worker": {
             "properties": {
+                "concurrency": {
+                    "description": "Number of concurrent Celery worker processes. When set, bypasses the entrypoint to invoke celery directly with --concurrency N. Set to null to use celery default (cpu_count).",
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 32
+                },
+                "queues": {
+                    "description": "Comma-separated list of Celery queues for the worker to consume from. Only used when worker.concurrency is set.",
+                    "type": "string"
+                },
                 "affinity": {
                     "properties": {},
                     "type": "object"

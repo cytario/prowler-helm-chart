@@ -124,11 +124,14 @@ ui:
   networkPolicy:
     enabled: true
 
-# Per-component extra environment variables
+# Worker concurrency (bypasses entrypoint, invokes celery directly)
 worker:
-  extraEnv:
-    - name: CELERY_WORKER_CONCURRENCY
-      value: "4"
+  concurrency: 2
+  resources:
+    limits:
+      memory: 4Gi
+    requests:
+      memory: 2Gi
 
 # Configurable secret names (for External Secrets Operator, etc.)
 externalSecrets:

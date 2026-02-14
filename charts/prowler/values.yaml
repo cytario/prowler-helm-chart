@@ -545,19 +545,33 @@ worker:
     # Example: sha256:abc123...
     digest: ""
 
-  # Celery worker concurrency.
-  # By default, Celery uses multiprocessing.cpu_count() which reads the NODE CPU count,
-  # not the pod's CPU limit. A pod with 2 CPU on a 16-core node spawns 16 workers.
+  # Number of concurrent Celery worker processes (prefork pool size).
   #
-  # To override (requires Prowler image support for CELERY_WORKER_CONCURRENCY env var):
-  #   extraEnv:
-  #     - name: CELERY_WORKER_CONCURRENCY
-  #       value: "4"
+  # When set to a positive integer, the chart bypasses the docker-entrypoint.sh and
+  # invokes Celery directly with --concurrency N. This is necessary because the
+  # Prowler entrypoint hardcodes the celery command and ignores extra arguments.
   #
-  # Alternative: override the command/args to pass --concurrency directly:
-  #   args:
-  #     - worker
-  #     - --concurrency=4
+  # When set to null, the entrypoint runs unchanged and Celery defaults to
+  # multiprocessing.cpu_count() — the NODE CPU count, NOT the container CPU limit.
+  # A pod on a 16-core node spawns 16 workers regardless of CPU limits.
+  #
+  # Each Prowler scan task uses ~1-1.5 GiB peak memory. Size limits accordingly:
+  #   concurrency: 1 -> limits.memory: 2Gi
+  #   concurrency: 2 -> limits.memory: 4Gi  (default)
+  #   concurrency: 4 -> limits.memory: 8Gi  (requires nodes with 16+ GiB RAM)
+  #
+  # When upstream Prowler adds native CELERY_WORKER_CONCURRENCY env var support,
+  # this value will be deprecated in favor of the env var approach via extraEnv.
+  concurrency: 2
+
+  # Celery queue list the worker consumes from.
+  # Only used when worker.concurrency is set (bypasses the entrypoint).
+  # Must match the queues in the Prowler docker-entrypoint.sh.
+  queues: "celery,scans,scan-reports,deletion,backfill,overview,integrations,compliance,attack-paths-scans"
+
+  # Override command/args when you need full control (e.g., custom entrypoint).
+  # When worker.concurrency is set, these are ignored — the chart constructs the
+  # celery command automatically. Set concurrency to null to use these values.
   command:
     - /home/prowler/docker-entrypoint.sh
   args:
@@ -629,10 +643,10 @@ worker:
   resources:
     limits:
       cpu: 2000m
-      memory: 2Gi
+      memory: 4Gi
     requests:
       cpu: 500m
-      memory: 512Mi
+      memory: 2Gi
   # Health probes for Celery workers
   # More info: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
   #
@@ -693,7 +707,7 @@ worker:
   topologySpreadConstraints: []
 
   # Extra environment variables to add to worker pods.
-  # Useful for per-component overrides (e.g., CELERY_WORKER_CONCURRENCY on workers only).
+  # Useful for per-component overrides.
   # Example:
   #   extraEnv:
   #     - name: MY_VAR
