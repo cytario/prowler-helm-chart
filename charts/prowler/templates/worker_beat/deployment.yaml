@@ -4,10 +4,11 @@ metadata:
   name: {{ include "prowler.fullname" . }}-worker-beat
   labels:
     {{- include "prowler.labels" . | nindent 4 }}
+{{- if gt (int .Values.worker_beat.replicaCount) 1 }}
+  {{- fail "worker_beat.replicaCount must be 1 -- Celery Beat must be a singleton" }}
+{{- end }}
 spec:
-  {{- if not .Values.worker_beat.autoscaling.enabled }}
   replicas: {{ .Values.worker_beat.replicaCount }}
-  {{- end }}
   # Recreate strategy is required because Celery Beat must be a singleton.
   # RollingUpdate would momentarily run two beat schedulers, causing duplicate task dispatch.
   strategy:

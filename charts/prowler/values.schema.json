@@ -779,7 +779,7 @@
             "properties": {
                 "concurrency": {
                     "description": "Number of concurrent Celery worker processes. When set, bypasses the entrypoint to invoke celery directly with --concurrency N. Set to null to use celery default (cpu_count).",
-                    "type": "integer",
+                    "type": ["integer", "null"],
                     "minimum": 1,
                     "maximum": 32
                 },
@@ -1033,26 +1033,6 @@
                         "type": "string"
                     },
                     "type": "array"
-                },
-                "autoscaling": {
-                    "properties": {
-                        "enabled": {
-                            "type": "boolean"
-                        },
-                        "maxReplicas": {
-                            "type": "integer"
-                        },
-                        "minReplicas": {
-                            "type": "integer"
-                        },
-                        "targetCPUUtilizationPercentage": {
-                            "type": "integer"
-                        },
-                        "targetMemoryUtilizationPercentage": {
-                            "type": "integer"
-                        }
-                    },
-                    "type": "object"
                 },
                 "command": {
                     "items": {
