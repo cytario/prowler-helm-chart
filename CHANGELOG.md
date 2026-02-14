@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.3](https://github.com/cytario/prowler-helm-chart/compare/v3.0.2...v3.0.3) (2026-02-14)
+
+### Bug Fixes
+
+* disable Neo4j strict config validation for APOC plugin compat ([e19db6d](https://github.com/cytario/prowler-helm-chart/commit/e19db6db84c976f2c51dfd3c4574299b5152442b))
+
 ## [3.0.2](https://github.com/cytario/prowler-helm-chart/compare/v3.0.1...v3.0.2) (2026-02-14)
 
 ### Bug Fixes
