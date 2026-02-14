@@ -1222,9 +1222,6 @@
                 },
                 "config": {
                     "properties": {
-                        "maxDatabases": {
-                            "type": "integer"
-                        },
                         "pagecacheSize": {
                             "type": "string"
                         },

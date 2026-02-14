@@ -984,10 +984,9 @@ neo4j:
   # DozerDB configuration
   # DozerDB is a Neo4j fork that uses the legacy dbms.* env var prefix.
   # Memory settings map to dbms.memory.* (NOT server.memory.* as in vanilla Neo4j 5.x).
-  # Database settings map to dbms.* (NOT initial.dbms.*).
+  # DozerDB does NOT support dbms.default_database or dbms.max_databases env vars.
+  # Use extraEnv below to pass any additional DozerDB-specific settings.
   config:
-    # Maximum number of databases (dbms.max_databases)
-    maxDatabases: 1000
     # Page cache size (dbms.memory.pagecache.size)
     pagecacheSize: "1G"
     # Initial JVM heap size (dbms.memory.heap.initial_size)

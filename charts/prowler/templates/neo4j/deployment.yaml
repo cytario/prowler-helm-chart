@@ -71,11 +71,6 @@ spec:
               value: "apoc.*"
             - name: NEO4J_dbms_security_procedures_allowlist
               value: "apoc.*"
-            # Database configuration (dbms.* prefix required by DozerDB)
-            - name: NEO4J_dbms_default__database
-              value: "neo4j"
-            - name: NEO4J_dbms_max__databases
-              value: {{ .Values.neo4j.config.maxDatabases | quote }}
             # Memory configuration (dbms.memory.* prefix required by DozerDB)
             - name: NEO4J_dbms_memory_pagecache_size
               value: {{ .Values.neo4j.config.pagecacheSize | quote }}
