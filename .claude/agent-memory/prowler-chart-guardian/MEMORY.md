@@ -2,9 +2,10 @@
 
 ## Chart Structure
 - Chart path: `charts/prowler/`
-- Chart version: 1.3.5, appVersion: 5.17.1
+- Chart version: 2.0.2, appVersion: 5.17.1
 - Components: api, ui, worker, worker_beat, neo4j (DozerDB)
 - Shared env helpers: `prowler.env` and `prowler.envFrom` in `templates/_helpers.tpl` (refactored from duplicated blocks in 1.3.0)
+- DRY helpers (added 2.0.2): `prowler.sharedStorage.volume` (API/Worker volume def), `prowler.topologySpreadConstraints` (multi-component spread)
 - ConfigMap `prowler-api` is shared across all components via `envFrom`
 - External secrets: `prowler-postgres-secret` (7 keys including admin), `prowler-valkey-secret` (4 keys)
 - Django config keys auto-generated via `djangoConfigKeys.create: true` (via pre-install/pre-upgrade Job using unpinned bitnami/kubectl:latest)
@@ -29,11 +30,28 @@
 - `DJANGO_SETTINGS_MODULE: config.django.production` is the standard settings path
 - **Duplicate label issue**: All deployments render `app.kubernetes.io/name` twice (from prowler.labels + explicit override). Pre-existing, not a regression.
 - POSTGRES_ADMIN credentials are injected to all containers via shared `prowler.env` helper even when not needed (design debt)
-- **All 4 HPAs have broken scaleTargetRef** -- name missing component suffix, silently target non-existent Deployment
-- **Worker-beat uses RollingUpdate** (should be Recreate for singleton), and HPA allows scaling to 10 replicas
-- No extraEnv/extraEnvFrom support on any component
-- No image digest support on any component
+- **All 3 HPAs have broken scaleTargetRef** -- name missing component suffix, silently target non-existent Deployment (API, UI, Worker)
+- api.terminationGracePeriodSeconds: 30 (added 2.0.2 Phase 6) -- allows gunicorn to finish in-flight requests
+- Worker-beat HPA REMOVED in Phase 2 (nonsensical for singleton)
+- Worker-beat enforces singleton via fail guard in deployment template (added Phase 2)
+- Worker-beat uses Recreate strategy (correct for singleton)
+- extraEnv/extraEnvFrom support added to API, Worker, UI in 2.0.0
+- image.digest support added to all components in 2.0.0
 - Test pod uses unpinned busybox:latest with no security context
+
+## Worker Concurrency Control (added 2.0.0 Phase 2)
+- `worker.concurrency` accepts integer (1-32) or null via schema `type: ["integer", "null"]`
+- When set to integer: bypasses entrypoint, invokes celery directly with --concurrency N
+- When set to null: uses default entrypoint (/home/prowler/docker-entrypoint.sh worker)
+- Template logic: `{{- if .Values.worker.concurrency }}` (Helm treats null as falsy)
+
+## Shared Storage Volume (DRY helper added 2.0.2 Phase 6)
+- Helper template: `prowler.sharedStorage.volume` eliminates duplicate volume definitions in API and Worker
+- Renders either emptyDir or persistentVolumeClaim based on `sharedStorage.type`
+- Handles all emptyDir options: medium, sizeLimit
+- Handles PVC options: create (generates `prowler-shared-storage` name) or existingClaim
+- Usage: `{{- include "prowler.sharedStorage.volume" . | nindent 8 }}`
+- Mounted at `DJANGO_TMP_OUTPUT_DIRECTORY` (/tmp/prowler_api_output by default) in API and Worker
 
 ## v1.3.5 Change Request Review
 - See [guardian-review.md](../docs/guardian-review.md) for full analysis of 21 change requests
@@ -43,11 +61,13 @@
 - Item #10 (key generator Job) -- prefer eliminating Job in favor of Helm template-based key generation
 - 5 additional issues identified not in the original change requests
 
-## Topology Spread (added 1.3.2)
+## Topology Spread (added 1.3.2, refactored 2.0.2)
 - API, UI, Worker have `defaultTopologySpread: true` with soft ScheduleAnyway constraint on hostname
 - Worker_beat has only `topologySpreadConstraints: []` (single replica, no default spread)
 - Custom topologySpreadConstraints override takes precedence over defaultTopologySpread
 - Neo4j has no topology spread (single replica)
+- Helper template `prowler.topologySpreadConstraints` DRYs the default spread pattern (added 2.0.2)
+- Usage: `{{- include "prowler.topologySpreadConstraints" (dict "component" "api" "context" .) | nindent 6 }}`
 
 ## Scan Recovery (added 1.3.0, fixed 1.3.1/1.3.2)
 - See [scan-recovery-review.md](scan-recovery-review.md) for detailed findings
@@ -62,13 +82,16 @@
 
 ## values.schema.json
 - Added in the topology/affinity PR
-- Now covers: all top-level sections including neo4j, worker.scanRecovery, worker.scanRecoveryCronJob, worker.terminationGracePeriodSeconds, api.rbac, api.networkPolicy, api.startupProbe
+- Now covers: all top-level sections including neo4j, worker.scanRecovery, worker.scanRecoveryCronJob, worker.terminationGracePeriodSeconds, api.rbac, api.networkPolicy, api.startupProbe, api.terminationGracePeriodSeconds
+- Includes networkPolicy.postgresPort and networkPolicy.valkeyPort for API, Worker, and Worker_beat (added 2.0.2)
 - Does NOT use `additionalProperties: false` -- accepts any key (non-strict validation)
 - Schema is permissive by design to not break custom values overrides
-- Must be updated when adding new values fields (extraEnv, digest, lifecycle, etc.)
+- Must be updated when adding new values fields
 
-## Network Policy Architecture
-- All 4 policies gated by single toggle: `api.networkPolicy.enabled`
-- UI and worker-beat templates have copy-paste errors referencing `api.networkPolicy.ingress/egress`
+## Network Policy Architecture (Phase 5 improvements in 2.0.2)
+- Each component has its own networkPolicy.enabled toggle (api, ui, worker, worker_beat)
+- Configurable ports: api.networkPolicy.postgresPort/valkeyPort, worker.networkPolicy.postgresPort/valkeyPort, worker_beat.networkPolicy.postgresPort/valkeyPort (defaults: 5432/6379)
+- Neo4j egress rules conditionally rendered: wrapped in `{{- if .Values.neo4j.enabled }}` for API and Worker netpols
+- Worker_beat netpol does NOT have Neo4j egress (doesn't execute scans, only schedules)
 - Worker netpol egress uses `namespaceSelector: {}` for cloud APIs -- only matches in-cluster on most CNIs
-- No Neo4j or CronJob network policies exist
+- Neo4j and CronJob network policies exist (added in earlier phases)

@@ -13,6 +13,7 @@
 - External secrets configurable via `externalSecrets.postgres.secretName` / `externalSecrets.valkey.secretName` (defaults: `prowler-postgres-secret`, `prowler-valkey-secret`)
 - All 4 components support `extraEnv: []` and `extraEnvFrom: []` for per-component env injection
 - Neo4j env vars conditionally included: `{{- if .Values.neo4j.enabled }}`
+- Neo4j 5.x env var prefixes: memory uses `server_memory_*`, security uses `dbms_security_*`, db init uses `initial_dbms_*`
 - Pod Security Standards enforced: `pod-security.kubernetes.io/enforce: restricted`
 - Config checksum annotation triggers pod restarts on configmap changes
 - Duplicate `app.kubernetes.io/name` labels in pod templates (first from `prowler.labels`, second overrides per-component)
@@ -22,6 +23,12 @@
 - Neo4j NetworkPolicy allows ingress from API+Worker on Bolt(7687)+HTTP(7474) only
 - Worker netpol egress: 443/6443 rules have no `to:` selector (allows external cloud APIs)
 - SA automount: `api`/`worker` true; `ui`/`worker_beat`/`neo4j` false
+
+## RBAC Architecture
+- ClusterRole+ClusterRoleBinding live in `templates/worker/clusterrole.yaml` (moved from `templates/api/role.yaml`)
+- Bound to worker SA (not API SA) -- workers execute K8s scans, API is just Django
+- Controlled by `worker.rbac.create` and `worker.rbac.rules` in values.yaml
+- Resource names use `-worker` suffix: `{{ include "prowler.fullname" . }}-worker`
 
 ## Known Bugs (as of 1.3.5)
 - All 4 HPA templates have wrong `scaleTargetRef.name` (missing component suffix)
@@ -39,9 +46,18 @@
 - ~~CronJob inherits worker SA with cloud IAM -- needs dedicated SA~~ FIXED Phase 3: dedicated `prowler-scan-recovery` SA
 - ~~Missing optimistic concurrency on update (race condition if scan completes between query and update)~~ FIXED Phase 7
 
+## DRY Helpers (added in Phase 6b)
+- `prowler.sharedStorage.volume`: renders shared-storage volume spec (emptyDir or PVC), used by API+Worker deployments
+- `prowler.topologySpreadConstraints`: renders default topology spread, takes `dict "component" "<name>" "context" .`
+- Both API and Worker deployments now use these helpers instead of inline duplication
+
 ## Topology Spread
-- `api`, `worker`, `ui`: use `defaultTopologySpread: true` with `if/else if` pattern
+- `api`, `worker`, `ui`: use `defaultTopologySpread: true` with helper `prowler.topologySpreadConstraints`
 - `worker_beat`: uses `with` pattern, no defaultTopologySpread (singleton, intentional)
+
+## API Deployment
+- `api.terminationGracePeriodSeconds` added (default 30s) -- schema updated too
+- No explicit `strategy` field (K8s defaults to RollingUpdate, which is correct for a stateless API)
 
 ## Values Conventions
 - Components: `ui`, `api`, `worker`, `worker_beat` (underscore, not camelCase), `neo4j`
