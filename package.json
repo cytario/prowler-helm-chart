@@ -1,6 +1,6 @@
 {
   "name": "prowler-helm-chart",
-  "version": "3.0.0",
+  "version": "3.0.1",
   "description": "Helm chart for Prowler - Open Cloud Security tool",
   "private": true,
   "repository": {

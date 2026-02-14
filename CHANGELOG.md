@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.1](https://github.com/cytario/prowler-helm-chart/compare/v3.0.0...v3.0.1) (2026-02-14)
+
+### Bug Fixes
+
+* revert Neo4j env vars to dbms_* prefix for DozerDB compatibility ([6856b50](https://github.com/cytario/prowler-helm-chart/commit/6856b50d794171d50e28c5c948f529f22d22bb24))
+
 ## [3.0.0](https://github.com/cytario/prowler-helm-chart/compare/v2.0.3...v3.0.0) (2026-02-14)
 
 ### ⚠ BREAKING CHANGES
