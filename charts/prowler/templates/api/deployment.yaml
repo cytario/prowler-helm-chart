@@ -31,6 +31,7 @@ spec:
         {{- toYaml . | nindent 8 }}
       {{- end }}
       serviceAccountName: {{ include "prowler.api.serviceAccountName" . }}
+      terminationGracePeriodSeconds: {{ .Values.api.terminationGracePeriodSeconds }}
       {{- with .Values.api.podSecurityContext }}
       securityContext:
         {{- toYaml . | nindent 8 }}
@@ -95,19 +96,7 @@ spec:
             {{- end }}
       volumes:
         # Shared storage volume for scan outputs (shared between API and Worker)
-        - name: shared-storage
-          {{- if eq .Values.sharedStorage.type "emptyDir" }}
-          emptyDir:
-            {{- if .Values.sharedStorage.emptyDir.medium }}
-            medium: {{ .Values.sharedStorage.emptyDir.medium }}
-            {{- end }}
-            {{- if .Values.sharedStorage.emptyDir.sizeLimit }}
-            sizeLimit: {{ .Values.sharedStorage.emptyDir.sizeLimit }}
-            {{- end }}
-          {{- else if eq .Values.sharedStorage.type "persistentVolumeClaim" }}
-          persistentVolumeClaim:
-            claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
-          {{- end }}
+        {{- include "prowler.sharedStorage.volume" . | nindent 8 }}
         {{- if .Values.api.configStorage.enabled }}
         # API configuration storage volume
         - name: api-config
@@ -143,11 +132,5 @@ spec:
       topologySpreadConstraints:
         {{- toYaml .Values.api.topologySpreadConstraints | nindent 8 }}
       {{- else if .Values.api.defaultTopologySpread }}
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
+      {{- include "prowler.topologySpreadConstraints" (dict "component" "api" "context" .) | nindent 6 }}
       {{- end }}

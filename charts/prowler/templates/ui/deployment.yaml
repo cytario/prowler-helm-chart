@@ -100,11 +100,5 @@ spec:
       topologySpreadConstraints:
         {{- toYaml .Values.ui.topologySpreadConstraints | nindent 8 }}
       {{- else if .Values.ui.defaultTopologySpread }}
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ include "prowler.fullname" . }}-ui
+      {{- include "prowler.topologySpreadConstraints" (dict "component" "ui" "context" .) | nindent 6 }}
       {{- end }}

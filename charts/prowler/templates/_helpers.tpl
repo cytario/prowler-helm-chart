@@ -74,6 +74,43 @@ Falls back to the worker service account for backward compatibility.
 {{- end }}
 
 {{/*
+Shared storage volume definition for scan outputs.
+Renders the volume spec for either emptyDir or persistentVolumeClaim.
+Used by both API and Worker deployments.
+Usage: {{- include "prowler.sharedStorage.volume" . | nindent 8 }}
+*/}}
+{{- define "prowler.sharedStorage.volume" -}}
+- name: shared-storage
+  {{- if eq .Values.sharedStorage.type "emptyDir" }}
+  emptyDir:
+    {{- if .Values.sharedStorage.emptyDir.medium }}
+    medium: {{ .Values.sharedStorage.emptyDir.medium }}
+    {{- end }}
+    {{- if .Values.sharedStorage.emptyDir.sizeLimit }}
+    sizeLimit: {{ .Values.sharedStorage.emptyDir.sizeLimit }}
+    {{- end }}
+  {{- else if eq .Values.sharedStorage.type "persistentVolumeClaim" }}
+  persistentVolumeClaim:
+    claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
+  {{- end }}
+{{- end }}
+
+{{/*
+Default topology spread constraints for multi-replica deployments.
+Spreads pods across nodes to improve availability.
+Usage: {{- include "prowler.topologySpreadConstraints" (dict "component" "api" "context" .) | nindent 6 }}
+*/}}
+{{- define "prowler.topologySpreadConstraints" -}}
+topologySpreadConstraints:
+  - maxSkew: 1
+    topologyKey: kubernetes.io/hostname
+    whenUnsatisfiable: ScheduleAnyway
+    labelSelector:
+      matchLabels:
+        app.kubernetes.io/name: {{ include "prowler.fullname" .context }}-{{ .component }}
+{{- end }}
+
+{{/*
 Render a container image reference, preferring digest over tag.
 Usage: {{ include "prowler.image" (dict "imageConfig" .Values.api.image "defaultTag" .Chart.AppVersion) }}
 */}}

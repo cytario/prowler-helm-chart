@@ -140,19 +140,7 @@ spec:
             {{- end }}
       volumes:
         # Shared storage volume for scan outputs (shared between API and Worker)
-        - name: shared-storage
-          {{- if eq .Values.sharedStorage.type "emptyDir" }}
-          emptyDir:
-            {{- if .Values.sharedStorage.emptyDir.medium }}
-            medium: {{ .Values.sharedStorage.emptyDir.medium }}
-            {{- end }}
-            {{- if .Values.sharedStorage.emptyDir.sizeLimit }}
-            sizeLimit: {{ .Values.sharedStorage.emptyDir.sizeLimit }}
-            {{- end }}
-          {{- else if eq .Values.sharedStorage.type "persistentVolumeClaim" }}
-          persistentVolumeClaim:
-            claimName: {{ if .Values.sharedStorage.persistentVolumeClaim.create }}{{ include "prowler.fullname" . }}-shared-storage{{ else }}{{ .Values.sharedStorage.persistentVolumeClaim.existingClaim }}{{ end }}
-          {{- end }}
+        {{- include "prowler.sharedStorage.volume" . | nindent 8 }}
         {{- if .Values.worker.scanRecovery.enabled }}
         - name: scan-recovery-script
           configMap:
@@ -177,11 +165,5 @@ spec:
       topologySpreadConstraints:
         {{- toYaml .Values.worker.topologySpreadConstraints | nindent 8 }}
       {{- else if .Values.worker.defaultTopologySpread }}
-      topologySpreadConstraints:
-        - maxSkew: 1
-          topologyKey: kubernetes.io/hostname
-          whenUnsatisfiable: ScheduleAnyway
-          labelSelector:
-            matchLabels:
-              app.kubernetes.io/name: {{ include "prowler.fullname" . }}-worker
+      {{- include "prowler.topologySpreadConstraints" (dict "component" "worker" "context" .) | nindent 6 }}
       {{- end }}
