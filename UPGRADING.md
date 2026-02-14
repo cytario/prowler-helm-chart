@@ -193,7 +193,7 @@ The chart structure and API remain the same, but several default values have cha
 | `worker_beat.serviceAccount.automount` | `true` | `false` | Set `true` if using Pod Identity webhook on beat pods |
 | Network policy toggles | Single `api.networkPolicy.enabled` controlled all | Per-component: `worker.networkPolicy.enabled`, `ui.networkPolicy.enabled`, `worker_beat.networkPolicy.enabled` | If you had `api.networkPolicy.enabled: true`, also set the per-component toggles |
 | Worker-beat deployment strategy | `RollingUpdate` (Kubernetes default) | `Recreate` | None -- this fixes duplicate beat scheduling during upgrades |
-| Key generator image | `bitnami/kubectl:latest` | `bitnami/kubectl:1.31.4` (configurable via `api.djangoConfigKeys.image`) | None -- pinned for security |
+| Key generator image | `bitnami/kubectl:latest` with runtime `apt-get install openssl` | Prowler API image with pure Python `cryptography` lib (no external image dependency) | None -- no separate image to configure |
 | Test pod images | `busybox:latest`, `curlimages/curl:latest` | `busybox:1.37.0`, `curlimages/curl:8.11.1` | None -- pinned for security |
 | Scan recovery logging | Unstructured `print()` | Structured JSON (ndjson) | Update log parsers if you relied on the old format |
 
@@ -520,18 +520,20 @@ Ensure your values include proper health checks (v2.0.0+ supports `startupProbe`
 worker:
   startupProbe:
     exec:
-      command: ["/bin/sh", "-c", "celery -A config.celery inspect ping --timeout 5"]
+      command: ["/bin/sh", "-c", "grep -q worker /proc/1/cmdline"]
     failureThreshold: 30
     periodSeconds: 10
 
 worker_beat:
   livenessProbe:
     exec:
-      command: ["/bin/sh", "-c", "pgrep -f 'celery.*beat' > /dev/null"]
-    initialDelaySeconds: 120
+      command: ["/bin/sh", "-c", "grep -q beat /proc/1/cmdline"]
     periodSeconds: 60
     failureThreshold: 3
 ```
+
+> **Note:** The Prowler API image does not include `celery` in `PATH`, `pgrep`, or `ps`.
+> Use `/proc/1/cmdline`-based probes as shown above. See `values.yaml` comments for details.
 
 ### 6. Use Gradual Rollout
 

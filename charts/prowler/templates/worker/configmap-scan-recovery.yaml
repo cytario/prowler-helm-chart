@@ -95,11 +95,12 @@ data:
         count = queryset.count()
         if count:
             scan_ids = list(queryset.values_list("id", flat=True)[:50])
-            queryset.filter(state="executing").update(state="failed", completed_at=timezone.now())
+            updated = queryset.filter(state="executing").update(state="failed", completed_at=timezone.now())
             logger.info(
                 "Recovered orphaned scans",
                 extra={"extra_data": {
-                    "count": count,
+                    "matched": count,
+                    "updated": updated,
                     "reason": reason,
                     "scan_ids": [str(sid) for sid in scan_ids],
                 }},

@@ -14,8 +14,6 @@ spec:
   template:
     metadata:
       annotations:
-        # Pod Security Standards
-        seccomp.security.alpha.kubernetes.io/pod: runtime/default
         # Checksums to trigger automatic pod restarts on config changes
         checksum/config: {{ include (print $.Template.BasePath "/api/configmap.yaml") . | sha256sum }}
         {{- with .Values.api.podAnnotations }}
@@ -24,8 +22,6 @@ spec:
       labels:
         {{- include "prowler.labels" . | nindent 8 }}
         app.kubernetes.io/name: {{ include "prowler.fullname" . }}-api
-        # Pod Security Standards compliance label
-        pod-security.kubernetes.io/enforce: restricted
         {{- with .Values.api.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}

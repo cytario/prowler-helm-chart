@@ -63,14 +63,6 @@ ui:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
 
-  # Network policy configuration
-  networkPolicy:
-    enabled: false
-    # Additional ingress rules
-    ingress: []
-    # Additional egress rules
-    egress: []
-
   # Pod Disruption Budget - ensures high availability during voluntary disruptions
   # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
   podDisruptionBudget:
@@ -516,12 +508,6 @@ worker:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
 
-  # Network policy configuration
-  networkPolicy:
-    enabled: false
-    # Additional egress rules
-    egress: []
-
   # Time in seconds to allow worker pods to gracefully shut down before being killed.
   # This gives in-flight scans time to complete during voluntary disruptions
   # (e.g., Karpenter consolidation, rolling updates).
@@ -781,12 +767,6 @@ worker_beat:
   # Running multiple beat instances causes duplicate task scheduling.
   # The deployment uses strategy: Recreate to prevent overlap during upgrades.
   replicaCount: 1
-
-  # Network policy configuration
-  networkPolicy:
-    enabled: false
-    # Additional egress rules
-    egress: []
 
   # Time in seconds to allow beat pod to gracefully shut down.
   # Beat does not process long-running tasks, so the default K8s value (30s) is usually fine.

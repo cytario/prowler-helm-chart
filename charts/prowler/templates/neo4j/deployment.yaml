@@ -17,17 +17,13 @@ spec:
       {{- include "prowler.neo4j.selectorLabels" . | nindent 6 }}
   template:
     metadata:
+      {{- with .Values.neo4j.podAnnotations }}
       annotations:
-        # Pod Security Standards
-        seccomp.security.alpha.kubernetes.io/pod: runtime/default
-        {{- with .Values.neo4j.podAnnotations }}
         {{- toYaml . | nindent 8 }}
-        {{- end }}
+      {{- end }}
       labels:
         {{- include "prowler.neo4j.labels" . | nindent 8 }}
         {{- include "prowler.neo4j.selectorLabels" . | nindent 8 }}
-        # Pod Security Standards compliance label
-        pod-security.kubernetes.io/enforce: restricted
         {{- with .Values.neo4j.podLabels }}
         {{- toYaml . | nindent 8 }}
         {{- end }}
