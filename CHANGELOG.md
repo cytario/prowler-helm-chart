@@ -2,6 +2,34 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.0](https://github.com/cytario/prowler-helm-chart/compare/v2.0.3...v3.0.0) (2026-02-14)
+
+### ⚠ BREAKING CHANGES
+
+* Neo4j memory env vars renamed for 5.x compatibility
+* api.rbac config moved to worker.rbac
+* remove worker-beat HPA and add singleton fail guard
+* worker.concurrency defaults to 2, bypassing the
+entrypoint. Set worker.concurrency to null to restore previous
+behavior. Default worker memory limits changed from 512Mi/2Gi to
+2Gi/4Gi.
+
+### Features
+
+* add worker concurrency control to prevent OOM evictions ([8e26fcf](https://github.com/cytario/prowler-helm-chart/commit/8e26fcf6f1f63b73f4ee5415d1c8f482b2b46f96))
+
+### Bug Fixes
+
+* add configurable netpol ports and conditional Neo4j egress ([6d0dfbe](https://github.com/cytario/prowler-helm-chart/commit/6d0dfbe6082148315367b3dc11f100ff211d5fc3))
+* correct Neo4j 5.x environment variable naming ([144f625](https://github.com/cytario/prowler-helm-chart/commit/144f6254f53e877aa321c76891019276b870adba))
+* move RBAC from API to Worker ServiceAccount ([f966463](https://github.com/cytario/prowler-helm-chart/commit/f9664635966225609882fdaf6503b002e7dcf38c))
+* remove deprecated annotations, duplicate values, and stale docs ([418d511](https://github.com/cytario/prowler-helm-chart/commit/418d5119b97db80d56249f3836a3570ec6c8ce81))
+* remove worker-beat HPA and add singleton fail guard ([32a1e76](https://github.com/cytario/prowler-helm-chart/commit/32a1e76e9cd43421b87eb333f14b8f914d29321c))
+
+### Code Refactoring
+
+* DRY shared-storage and topology spread into helpers ([af4df7e](https://github.com/cytario/prowler-helm-chart/commit/af4df7e72cc0a42c4325c50275eb5f9eba3d8173))
+
 ## [2.0.3](https://github.com/cytario/prowler-helm-chart/compare/v2.0.2...v2.0.3) (2026-02-13)
 
 ### Bug Fixes
