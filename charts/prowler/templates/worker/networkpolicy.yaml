@@ -20,18 +20,18 @@ spec:
     ports:
     - protocol: TCP
       port: {{ .Values.api.service.port }}
-  # Allow egress to external PostgreSQL (configure as needed)
+  # Allow egress to external PostgreSQL
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
-      port: 5432
-  # Allow egress to external Valkey (configure as needed)
+      port: {{ .Values.worker.networkPolicy.postgresPort }}
+  # Allow egress to external Valkey
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
-      port: 6379
+      port: {{ .Values.worker.networkPolicy.valkeyPort }}
   # Allow DNS resolution
   - to:
     - namespaceSelector: {}
@@ -49,6 +49,16 @@ spec:
   - ports:
     - protocol: TCP
       port: 6443
+  {{- if .Values.neo4j.enabled }}
+  # Allow egress to Neo4j (Bolt protocol)
+  - to:
+    - podSelector:
+        matchLabels:
+          {{- include "prowler.neo4j.selectorLabels" . | nindent 10 }}
+    ports:
+    - protocol: TCP
+      port: {{ .Values.neo4j.service.port }}
+  {{- end }}
   {{- with .Values.worker.networkPolicy.egress }}
   {{- toYaml . | nindent 2 }}
   {{- end }}

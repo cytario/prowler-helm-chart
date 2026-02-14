@@ -182,6 +182,12 @@
                         "enabled": {
                             "type": "boolean"
                         },
+                        "postgresPort": {
+                            "type": "integer"
+                        },
+                        "valkeyPort": {
+                            "type": "integer"
+                        },
                         "ingress": {
                             "type": "array"
                         },
@@ -381,6 +387,10 @@
                 },
                 "volumes": {
                     "type": "array"
+                },
+                "terminationGracePeriodSeconds": {
+                    "type": "integer",
+                    "minimum": 0
                 },
                 "extraEnv": {
                     "type": "array"
@@ -843,6 +853,12 @@
                         "enabled": {
                             "type": "boolean"
                         },
+                        "postgresPort": {
+                            "type": "integer"
+                        },
+                        "valkeyPort": {
+                            "type": "integer"
+                        },
                         "egress": {
                             "type": "array"
                         }
@@ -1065,6 +1081,12 @@
                     "properties": {
                         "enabled": {
                             "type": "boolean"
+                        },
+                        "postgresPort": {
+                            "type": "integer"
+                        },
+                        "valkeyPort": {
+                            "type": "integer"
                         },
                         "egress": {
                             "type": "array"

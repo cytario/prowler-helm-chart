@@ -38,6 +38,11 @@ sharedStorage:
   # Type of storage: emptyDir or persistentVolumeClaim
   # emptyDir: Data is lost when pods are deleted (suitable for development)
   # persistentVolumeClaim: Data persists across pod restarts (recommended for production)
+  #
+  # WARNING: With emptyDir, scan output data is NOT persisted across pod restarts.
+  # If an API or Worker pod is evicted, rescheduled, or restarted, any in-progress
+  # scan outputs stored in this volume will be lost. For production deployments,
+  # use persistentVolumeClaim with ReadWriteMany access mode instead.
   type: emptyDir
   # Configuration for emptyDir type
   emptyDir:
@@ -236,6 +241,11 @@ api:
   # This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
   replicaCount: 2
 
+  # Time in seconds to allow the API pod to gracefully shut down.
+  # The API server (gunicorn) needs time to finish serving in-flight HTTP requests
+  # before terminating. The default of 30s is appropriate for most deployments.
+  terminationGracePeriodSeconds: 30
+
   # Pod Disruption Budget - ensures high availability during voluntary disruptions
   # More info: https://kubernetes.io/docs/tasks/run-application/configure-pdb/
   podDisruptionBudget:
@@ -257,6 +267,10 @@ api:
   # Network policy configuration
   networkPolicy:
     enabled: false
+    # Port used for PostgreSQL egress rules (must match your external PostgreSQL instance)
+    postgresPort: 5432
+    # Port used for Valkey/Redis egress rules (must match your external Valkey instance)
+    valkeyPort: 6379
     # Additional ingress rules
     ingress: []
     # Additional egress rules
@@ -719,6 +733,10 @@ worker:
   # Network policy configuration
   networkPolicy:
     enabled: false
+    # Port used for PostgreSQL egress rules (must match your external PostgreSQL instance)
+    postgresPort: 5432
+    # Port used for Valkey/Redis egress rules (must match your external Valkey instance)
+    valkeyPort: 6379
     # Additional egress rules
     egress: []
 
@@ -932,6 +950,10 @@ worker_beat:
   # Network policy configuration
   networkPolicy:
     enabled: false
+    # Port used for PostgreSQL egress rules (must match your external PostgreSQL instance)
+    postgresPort: 5432
+    # Port used for Valkey/Redis egress rules (must match your external Valkey instance)
+    valkeyPort: 6379
     # Additional egress rules
     egress: []
 

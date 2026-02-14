@@ -17,13 +17,13 @@ spec:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
-      port: 6379
+      port: {{ .Values.worker_beat.networkPolicy.valkeyPort }}
   # Allow egress to external PostgreSQL (for task state)
   - to:
     - namespaceSelector: {}
     ports:
     - protocol: TCP
-      port: 5432
+      port: {{ .Values.worker_beat.networkPolicy.postgresPort }}
   # Allow DNS resolution
   - to:
     - namespaceSelector: {}
