@@ -981,17 +981,18 @@ neo4j:
     # Auto-generated password is preserved across upgrades
     password: ""
 
-  # Neo4j/DozerDB 5.x configuration
-  # Memory settings map to server.memory.* (Neo4j 5.x prefix).
-  # Database settings map to initial.dbms.* (applied at first startup only).
+  # DozerDB configuration
+  # DozerDB is a Neo4j fork that uses the legacy dbms.* env var prefix.
+  # Memory settings map to dbms.memory.* (NOT server.memory.* as in vanilla Neo4j 5.x).
+  # Database settings map to dbms.* (NOT initial.dbms.*).
   config:
-    # Maximum number of databases (initial.dbms.max_databases, first startup only)
+    # Maximum number of databases (dbms.max_databases)
     maxDatabases: 1000
-    # Page cache size (server.memory.pagecache.size)
+    # Page cache size (dbms.memory.pagecache.size)
     pagecacheSize: "1G"
-    # Initial JVM heap size (server.memory.heap.initial_size)
+    # Initial JVM heap size (dbms.memory.heap.initial_size)
     heapInitialSize: "1G"
-    # Maximum JVM heap size (server.memory.heap.max_size)
+    # Maximum JVM heap size (dbms.memory.heap.max_size)
     heapMaxSize: "1G"
 
   # Service configuration
@@ -1111,3 +1112,18 @@ neo4j:
     enabled: false
     # Additional ingress rules
     ingress: []
+
+  # Additional environment variables to inject into the Neo4j container.
+  # Useful for passing DozerDB-specific settings not covered by config above.
+  # Example:
+  #   extraEnv:
+  #     - name: NEO4J_dbms_tx__log_rotation_retention__policy
+  #       value: "2 days"
+  extraEnv: []
+
+  # Additional envFrom sources (ConfigMapRef, SecretRef) for the Neo4j container.
+  # Example:
+  #   extraEnvFrom:
+  #     - secretRef:
+  #         name: my-neo4j-secrets
+  extraEnvFrom: []

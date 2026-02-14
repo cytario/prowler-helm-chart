@@ -53,6 +53,10 @@ spec:
             - name: http
               containerPort: 7474
               protocol: TCP
+          {{- with .Values.neo4j.extraEnvFrom }}
+          envFrom:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           env:
             # Authentication
             - name: NEO4J_AUTH
@@ -67,21 +71,24 @@ spec:
               value: "apoc.*"
             - name: NEO4J_dbms_security_procedures_allowlist
               value: "apoc.*"
-            # Database configuration (initial.dbms.* settings apply at first startup only)
-            - name: NEO4J_initial_dbms_default__database
+            # Database configuration (dbms.* prefix required by DozerDB)
+            - name: NEO4J_dbms_default__database
               value: "neo4j"
-            - name: NEO4J_initial_dbms_max__databases
+            - name: NEO4J_dbms_max__databases
               value: {{ .Values.neo4j.config.maxDatabases | quote }}
-            # Memory configuration (Neo4j 5.x uses server.memory.* prefix)
-            - name: NEO4J_server_memory_pagecache_size
+            # Memory configuration (dbms.memory.* prefix required by DozerDB)
+            - name: NEO4J_dbms_memory_pagecache_size
               value: {{ .Values.neo4j.config.pagecacheSize | quote }}
-            - name: NEO4J_server_memory_heap_initial__size
+            - name: NEO4J_dbms_memory_heap_initial__size
               value: {{ .Values.neo4j.config.heapInitialSize | quote }}
-            - name: NEO4J_server_memory_heap_max__size
+            - name: NEO4J_dbms_memory_heap_max__size
               value: {{ .Values.neo4j.config.heapMaxSize | quote }}
-            # Accept license agreement (required for Neo4j 5+)
+            # Accept license agreement
             - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
               value: "yes"
+            {{- with .Values.neo4j.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
           {{- with .Values.neo4j.startupProbe }}
           startupProbe:
             {{- toYaml . | nindent 12 }}

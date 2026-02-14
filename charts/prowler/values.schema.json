@@ -1348,6 +1348,12 @@
                         }
                     },
                     "type": "object"
+                },
+                "extraEnv": {
+                    "type": "array"
+                },
+                "extraEnvFrom": {
+                    "type": "array"
                 }
             },
             "type": "object"
