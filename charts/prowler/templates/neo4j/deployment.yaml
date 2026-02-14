@@ -67,17 +67,17 @@ spec:
               value: "apoc.*"
             - name: NEO4J_dbms_security_procedures_allowlist
               value: "apoc.*"
-            # Database configuration
+            # Database configuration (initial.dbms.* settings apply at first startup only)
             - name: NEO4J_initial_dbms_default__database
               value: "neo4j"
-            - name: NEO4J_dbms_max__databases
+            - name: NEO4J_initial_dbms_max__databases
               value: {{ .Values.neo4j.config.maxDatabases | quote }}
-            # Memory configuration
-            - name: NEO4J_dbms_memory_pagecache_size
+            # Memory configuration (Neo4j 5.x uses server.memory.* prefix)
+            - name: NEO4J_server_memory_pagecache_size
               value: {{ .Values.neo4j.config.pagecacheSize | quote }}
-            - name: NEO4J_dbms_memory_heap_initial__size
+            - name: NEO4J_server_memory_heap_initial__size
               value: {{ .Values.neo4j.config.heapInitialSize | quote }}
-            - name: NEO4J_dbms_memory_heap_max__size
+            - name: NEO4J_server_memory_heap_max__size
               value: {{ .Values.neo4j.config.heapMaxSize | quote }}
             # Accept license agreement (required for Neo4j 5+)
             - name: NEO4J_ACCEPT_LICENSE_AGREEMENT
