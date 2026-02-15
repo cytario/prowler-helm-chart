@@ -89,8 +89,10 @@ spec:
               cd /home/prowler/backend && exec poetry run python -m celery -A config.celery worker \
                 -l "${DJANGO_LOGGING_LEVEL:-info}" \
                 -Q "{{ .Values.worker.queues }}" \
-                -E --max-tasks-per-child 1 \
-                --concurrency={{ .Values.worker.concurrency | int }}
+                -E \
+                --concurrency={{ .Values.worker.concurrency | int }} \
+                --max-tasks-per-child {{ .Values.worker.maxTasksPerChild | default 1 | int }} \
+                --prefetch-multiplier {{ .Values.worker.prefetchMultiplier | default 1 | int }}
           {{- else }}
           {{- with .Values.worker.command }}
           command:

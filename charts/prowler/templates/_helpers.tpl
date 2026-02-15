@@ -51,15 +51,6 @@ app.kubernetes.io/managed-by: {{ .Release.Service }}
 {{- end }}
 
 {{/*
-Component labels - adds component label to selector labels
-Usage: {{ include "prowler.componentLabels" (dict "component" "api" "context" .) }}
-*/}}
-{{- define "prowler.componentLabels" -}}
-{{ include "prowler.labels" .context }}
-app.kubernetes.io/component: {{ .component }}
-{{- end }}
-
-{{/*
 Create the name of the scan recovery CronJob service account to use.
 Falls back to the worker service account for backward compatibility.
 */}}

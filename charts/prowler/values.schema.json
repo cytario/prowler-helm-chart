@@ -51,7 +51,8 @@
                             "type": "boolean"
                         },
                         "type": {
-                            "type": "string"
+                            "type": "string",
+                            "enum": ["emptyDir", "persistentVolumeClaim"]
                         },
                         "emptyDir": {
                             "properties": {
@@ -337,7 +338,8 @@
                     "type": "object"
                 },
                 "replicaCount": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "resources": {
                     "properties": {},
@@ -460,7 +462,8 @@
         "sharedStorage": {
             "properties": {
                 "type": {
-                    "type": "string"
+                    "type": "string",
+                    "enum": ["emptyDir", "persistentVolumeClaim"]
                 },
                 "emptyDir": {
                     "properties": {
@@ -690,7 +693,8 @@
                     "type": "object"
                 },
                 "replicaCount": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "resources": {
                     "properties": {},
@@ -785,6 +789,16 @@
                 "queues": {
                     "description": "Comma-separated list of Celery queues for the worker to consume from. Only used when worker.concurrency is set.",
                     "type": "string"
+                },
+                "maxTasksPerChild": {
+                    "description": "Maximum number of tasks a worker process executes before being replaced. Set to null to disable (unlimited). Default 1 ensures no memory leaks from long-running scans.",
+                    "type": ["integer", "null"],
+                    "minimum": 1
+                },
+                "prefetchMultiplier": {
+                    "description": "Number of tasks a worker prefetches per process. Default 1 is critical for HPA fairness with long-running tasks.",
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "affinity": {
                     "properties": {},
@@ -908,7 +922,8 @@
                     "type": "object"
                 },
                 "replicaCount": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1
                 },
                 "resources": {
                     "properties": {},
@@ -1137,7 +1152,9 @@
                     "type": "object"
                 },
                 "replicaCount": {
-                    "type": "integer"
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 1
                 },
                 "terminationGracePeriodSeconds": {
                     "type": "integer",
