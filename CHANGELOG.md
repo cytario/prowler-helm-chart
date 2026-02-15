@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.0.4](https://github.com/cytario/prowler-helm-chart/compare/v3.0.3...v3.0.4) (2026-02-15)
+
+### Bug Fixes
+
+* default worker concurrency to 1 to prevent OOM on large accounts ([663be5e](https://github.com/cytario/prowler-helm-chart/commit/663be5e6ee5929bf1078f45db1bf6436811ed3f4))
+
 ## [3.0.3](https://github.com/cytario/prowler-helm-chart/compare/v3.0.2...v3.0.3) (2026-02-14)
 
 ### Bug Fixes
