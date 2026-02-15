@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.0](https://github.com/cytario/prowler-helm-chart/compare/v3.0.4...v3.1.0) (2026-02-15)
+
+### Features
+
+* simplify chart, wire Celery tuning values, bump to 5.18.2 ([fceeaab](https://github.com/cytario/prowler-helm-chart/commit/fceeaabfd38d03ab3fab908e02a92b877b99af2e))
+
 ## [3.0.4](https://github.com/cytario/prowler-helm-chart/compare/v3.0.3...v3.0.4) (2026-02-15)
 
 ### Bug Fixes
