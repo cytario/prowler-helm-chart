@@ -74,5 +74,14 @@
 - Phase 7: Hardening/Polish (Neo4j PDB+tGPS, structured logging, test hardening, recovery concurrency guard) -- DONE
 - Phase 8: Scan Recovery Hardening (remaining items)
 
+## Worker Celery Tuning (added post-Phase 8)
+- Worker command is built in `templates/worker/deployment.yaml` lines 83-101 when `worker.concurrency` is set
+- New tuning values: `maxTasksPerChild` (default 1), `maxMemoryPerChild` (default null/disabled), `prefetchMultiplier` (default 1), `fairScheduling` (default true)
+- `-Ofair` and `--prefetch-multiplier 1` are critical for long-running tasks + HPA: prevents task hoarding by first worker pod
+- `--max-memory-per-child` is checked BETWEEN tasks only (not mid-task); real OOM protection = increase resource limits
+- Default worker resources bumped: limits 6Gi/2000m, requests 3Gi/500m (was 4Gi/2Gi)
+- HPA supports `customMetrics: []` for queue-depth-based scaling (prometheus-adapter/KEDA)
+- Template uses `{{- ... -}}` whitespace trimming to handle conditional shell line continuations cleanly
+
 ## Detailed Notes
 - See `scan-recovery-review.md` for scan recovery architecture analysis

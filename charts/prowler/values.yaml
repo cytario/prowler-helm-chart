@@ -547,14 +547,67 @@ worker:
   # multiprocessing.cpu_count() — the NODE CPU count, NOT the container CPU limit.
   # A pod on a 16-core node spawns 16 workers regardless of CPU limits.
   #
-  # Each Prowler scan task uses ~1-1.5 GiB peak memory. Size limits accordingly:
-  #   concurrency: 1 -> limits.memory: 2Gi
-  #   concurrency: 2 -> limits.memory: 4Gi  (default)
-  #   concurrency: 4 -> limits.memory: 8Gi  (requires nodes with 16+ GiB RAM)
+  # IMPORTANT: Each Prowler scan loads entire cloud service inventories into memory.
+  # Scan memory is proportional to account size and CANNOT be bounded by Celery flags.
+  # The only protection is setting limits.memory high enough for your largest account.
+  #
+  # Memory sizing guidance (concurrency=1, per-pod, with prefetchMultiplier: 1):
+  #   Small accounts  (<1000 resources):   limits.memory: 3-4Gi
+  #   Medium accounts (1000-10000):         limits.memory: 6-8Gi
+  #   Large accounts  (10000+ resources):   limits.memory: 8-16Gi
+  #
+  # For concurrency > 1, multiply the per-scan estimate by the concurrency value
+  # and add ~500Mi for the Celery parent process. concurrency=1 with horizontal
+  # pod scaling (HPA) is recommended over higher concurrency in a single pod:
+  #   - OOM kills only 1 scan instead of N
+  #   - Memory is predictable and easier to right-size
+  #   - Tasks distribute naturally across pods
   #
   # When upstream Prowler adds native CELERY_WORKER_CONCURRENCY env var support,
   # this value will be deprecated in favor of the env var approach via extraEnv.
-  concurrency: 2
+  concurrency: 1
+
+  # Maximum number of tasks a worker child process executes before being replaced.
+  # Prevents slow memory leaks from accumulating across tasks.
+  # Default 1: child is recycled after every task. Set higher for throughput if
+  # memory leaks are not a concern. Set to null to disable (unlimited tasks).
+  # Only used when worker.concurrency is set (bypasses the entrypoint).
+  maxTasksPerChild: 1
+
+  # Maximum resident memory (in KiB) a worker child may consume before being
+  # replaced by a new process. Celery checks this BETWEEN tasks only — it
+  # provides ZERO protection against a single task that exceeds the limit.
+  # With maxTasksPerChild: 1 (default), this setting has NO effect because
+  # the child is already replaced after every task.
+  # Only useful when maxTasksPerChild > 1 to cap memory leaks across tasks.
+  # For mid-task OOM protection, increase resources.limits.memory instead.
+  # Set to null to disable (no per-child memory limit).
+  # Example values: 2097152 = 2 GiB, 1048576 = 1 GiB, 524288 = 512 MiB
+  # Only used when worker.concurrency is set (bypasses the entrypoint).
+  maxMemoryPerChild: null
+
+  # Number of tasks a worker child prefetches from the broker.
+  # Default of 1 prevents greedy prefetching — critical for long-running tasks
+  # like Prowler cloud scans. Without this, a single worker reserves many tasks
+  # and newly-scaled HPA pods find no work in the queue.
+  #
+  # How prefetching interacts with HPA scaling:
+  #   Total reserved = concurrency x prefetchMultiplier (per pod)
+  #   With concurrency: 2, prefetchMultiplier: 4 (celery default) -> 8 tasks reserved
+  #   With concurrency: 2, prefetchMultiplier: 1 (chart default)  -> 2 tasks reserved
+  #
+  # For short tasks (<5s), increase to 4 for throughput.
+  # For long tasks (Prowler scans), keep at 1.
+  # Only used when worker.concurrency is set (bypasses the entrypoint).
+  prefetchMultiplier: 1
+
+  # Enable Celery fair scheduling (-Ofair flag).
+  # Prevents a child from prefetching the next task until the current one completes.
+  # NOTE: -Ofair has been the Celery default since 4.0. Explicitly setting it is
+  # a no-op unless the upstream app uses -Ofast. Kept for defense-in-depth.
+  # At concurrency=1, this is irrelevant (only one child exists).
+  # Only used when worker.concurrency is set (bypasses the entrypoint).
+  fairScheduling: true
 
   # Celery queue list the worker consumes from.
   # Only used when worker.concurrency is set (bypasses the entrypoint).
@@ -642,6 +695,9 @@ worker:
       drop:
         - ALL
 
+  # Resource limits sized for concurrency=1 scanning medium accounts.
+  # See concurrency comment above for sizing guidance by account size.
+  # Monitor actual RSS via container_memory_working_set_bytes and adjust.
   resources:
     limits:
       cpu: 2000m
@@ -676,13 +732,43 @@ worker:
   readinessProbe: {}
   startupProbe: {}
 
-  # This section is for setting up autoscaling more information can be found here: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+  # Horizontal Pod Autoscaler configuration.
+  # More info: https://kubernetes.io/docs/concepts/workloads/autoscaling/
+  #
+  # IMPORTANT: Resource-based HPA (CPU/memory) is REACTIVE and cannot prevent OOM.
+  # By the time memory triggers a scale-up, the existing pod is already close to its
+  # limit. The new pod takes 1-3 minutes to become ready and — because Prowler
+  # dispatches one Celery task per scan — may find no tasks in the queue anyway.
+  #
+  # Set maxReplicas to match your expected number of concurrent scans. Each Prowler
+  # scan is a single Celery task, so workers beyond the scan count sit idle.
+  #
+  # For effective proactive scaling, use queue-depth metrics instead:
+  #   1. Deploy Prometheus + celery-exporter to expose queue metrics
+  #   2. Deploy prometheus-adapter to make metrics available to HPA
+  #   3. Use customMetrics to scale based on celery_queue_length
   autoscaling:
     enabled: false
     minReplicas: 1
     maxReplicas: 10
     targetCPUUtilizationPercentage: 80
     targetMemoryUtilizationPercentage: 80
+    # Additional HPA metrics (appended to CPU/memory metrics above).
+    # Requires a metrics provider (e.g., prometheus-adapter, KEDA).
+    # Example — scale when Celery queue depth exceeds 5 per replica:
+    #   customMetrics:
+    #     - type: Object
+    #       object:
+    #         describedObject:
+    #           apiVersion: v1
+    #           kind: Service
+    #           name: prowler-valkey
+    #         metric:
+    #           name: celery_queue_length
+    #         target:
+    #           type: AverageValue
+    #           averageValue: "5"
+    customMetrics: []
 
   # Additional volumes on the output Deployment definition.
   volumes: []
