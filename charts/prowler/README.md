@@ -5,7 +5,7 @@ Images should use absolute URLs.
 
 # Prowler Helm Chart
 
-![Version: 3.1.0](https://img.shields.io/badge/Version-3.1.0-informational?style=flat-square)
+![Version: 3.1.0](https://img.shields.io/badge/Version-3.1.1-informational?style=flat-square)
 ![AppVersion: 5.18.3](https://img.shields.io/badge/AppVersion-5.18.3-informational?style=flat-square)
 
 Prowler is an Open Cloud Security tool for AWS, Azure, GCP and Kubernetes. It helps for continuous monitoring, security assessments and audits, incident response, compliance, hardening and forensics readiness. Includes CIS, NIST 800, NIST CSF, CISA, FedRAMP, PCI-DSS, GDPR, HIPAA, FFIEC, SOC2, GXP, Well-Architected Security, ENS and more.
@@ -37,7 +37,7 @@ Install the chart with default settings:
 
 ```bash
 # Using OCI registry (recommended)
-helm install prowler oci://ghcr.io/cytario/prowler --version 3.1.0
+helm install prowler oci://ghcr.io/cytario/prowler --version 3.1.1
 
 # Or using Helm repository
 helm repo add prowler-app https://cytario.github.io/prowler-helm-chart
