@@ -2,6 +2,12 @@
 
 All notable changes to this project will be documented in this file.
 
+## [3.1.2](https://github.com/cytario/prowler-helm-chart/compare/v3.1.1...v3.1.2) (2026-03-10)
+
+### Bug Fixes
+
+* bump AppVersion to 5.19.0 ([1554588](https://github.com/cytario/prowler-helm-chart/commit/15545889bdbded852ffca0dea919aa3631eeb87c))
+
 ## [3.1.1](https://github.com/cytario/prowler-helm-chart/compare/v3.1.0...v3.1.1) (2026-02-25)
 
 ### Bug Fixes
